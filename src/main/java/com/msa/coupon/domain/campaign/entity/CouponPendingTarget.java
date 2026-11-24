@@ -12,7 +12,7 @@ import lombok.Builder;
 import java.time.Instant;
 import java.util.UUID;
 
-/** 쿠폰 상태 원본을 보관하며 외부 서비스와 트랜잭션을 공유하지 않습니다. */
+/** 동의 확인이 일시 실패한 대상 이벤트를 보관해 Kafka 파티션을 막지 않고 다시 처리합니다. */
 @Entity
 @Table(name = "coupon_pending_targets", schema = "coupon")
 public class CouponPendingTarget {

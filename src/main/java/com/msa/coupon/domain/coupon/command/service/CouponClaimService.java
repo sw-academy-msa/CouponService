@@ -4,7 +4,7 @@ import com.msa.coupon.domain.coupon.dto.response.ClaimResponse;
 
 import java.util.UUID;
 
-/** 도메인 경계를 인터페이스로 분리합니다. */
+/** 사용자 받기 요청을 처리하며 이미 받은 쿠폰은 오류가 아니라 기존 발급으로 돌려줍니다. */
 public interface CouponClaimService {
     ClaimResponse claim(String code, UUID account);
 }

@@ -7,7 +7,7 @@ import lombok.Builder;
 import java.time.Instant;
 import java.util.UUID;
 
-/** HTTP 경계에서 원본 엔티티와 입력을 분리합니다. */
+/** 발급 쿠폰 응답입니다. 발급 시점 스냅샷만 보여 주고 계정 ID와 원천 참조는 내보내지 않습니다. */
 @Builder
 public record IssueResponse(
         UUID issueId,

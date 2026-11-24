@@ -9,7 +9,7 @@ import org.springframework.data.repository.query.Param;
 import java.util.List;
 import java.util.UUID;
 
-/** 원본 행 잠금과 조건부 갱신으로 복제본 간 경합을 제어합니다. */
+/** 캠페인 통계는 이력 테이블에서 집계해 발급 원본 행을 잠그지 않습니다. */
 public interface CouponIssueHistoryRepository extends JpaRepository<CouponIssueHistory, UUID> {
     @Query(
             value =

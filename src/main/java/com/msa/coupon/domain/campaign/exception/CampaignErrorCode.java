@@ -4,7 +4,7 @@ import com.msa.coupon.global.error.ErrorCode;
 
 import org.springframework.http.HttpStatus;
 
-/** 입력값 없이 사용자에게 보여 줄 고정 업무 오류만 정의합니다. */
+/** 캠페인 업무 오류입니다. 사용자에게 보여도 되는 고정 문장만 담고 입력값은 넣지 않습니다. */
 public enum CampaignErrorCode implements ErrorCode {
     CAMPAIGN_NOT_FOUND(HttpStatus.NOT_FOUND, "CAMPAIGN_NOT_FOUND", "캠페인을 찾을 수 없습니다."),
     CAMPAIGN_NOT_ACTIVE(HttpStatus.CONFLICT, "CAMPAIGN_NOT_ACTIVE", "진행 중인 캠페인이 아닙니다."),

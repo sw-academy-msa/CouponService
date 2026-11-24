@@ -7,7 +7,7 @@ import lombok.Builder;
 
 import java.util.UUID;
 
-/** HTTP 경계에서 원본 엔티티와 입력을 분리합니다. */
+/** 잠금 결과와 할인 조건 스냅샷입니다. 금액 계산은 order-command가 합니다. */
 @Builder
 public record LockResponse(
         UUID orderId,

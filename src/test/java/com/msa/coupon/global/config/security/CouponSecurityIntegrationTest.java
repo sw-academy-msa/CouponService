@@ -213,7 +213,13 @@ class CouponSecurityIntegrationTest extends CouponDatabaseTestSupport {
                         post("/internal/v1/coupon-locks")
                                 .with(orderService("coupon.lock"))
                                 .contentType(MediaType.APPLICATION_JSON)
-                                .content(lockBody(UUID.randomUUID(), issue, account, account, 30000)))
+                                .content(
+                                        lockBody(
+                                                UUID.randomUUID(),
+                                                issue,
+                                                account,
+                                                account,
+                                                30000)))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("code").value("COUPON_SELF_PRODUCT"));
     }

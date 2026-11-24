@@ -43,7 +43,6 @@ public class AdminCouponDefinitionController {
         return ApiResponse.onSuccess(service.retire(id), SuccessCode.OK);
     }
 
-
     @PostMapping
     @Operation(summary = "쿠폰 정의 생성", description = "발급 시 복사할 할인 조건을 등록합니다.")
     public ResponseEntity<ApiResponse<DefinitionResponse>> create(

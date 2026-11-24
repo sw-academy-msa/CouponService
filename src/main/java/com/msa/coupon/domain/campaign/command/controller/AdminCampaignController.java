@@ -52,7 +52,6 @@ public class AdminCampaignController {
         return ApiResponse.onSuccess(service.stats(id), SuccessCode.OK);
     }
 
-
     @PostMapping
     @Operation(summary = "캠페인 생성", description = "새 캠페인은 초안 상태로 생성합니다.")
     public ResponseEntity<ApiResponse<CampaignResponse>> create(

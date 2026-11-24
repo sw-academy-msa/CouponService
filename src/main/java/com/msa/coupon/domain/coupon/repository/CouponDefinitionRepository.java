@@ -6,5 +6,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.UUID;
 
-/** 원본 행 잠금과 조건부 갱신으로 복제본 간 경합을 제어합니다. */
+/** 정의는 운영자만 쓰고 발급 경합이 없어 기본 조회만 둡니다. */
 public interface CouponDefinitionRepository extends JpaRepository<CouponDefinition, UUID> {}

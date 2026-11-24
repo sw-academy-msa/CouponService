@@ -11,7 +11,7 @@ import lombok.Builder;
 import java.time.Instant;
 import java.util.UUID;
 
-/** 쿠폰 상태 원본을 보관하며 외부 서비스와 트랜잭션을 공유하지 않습니다. */
+/** 캠페인 예산 원본입니다. issued_count는 조건부 UPDATE로만 늘려 예산을 넘지 않게 합니다. */
 @Entity
 @Table(name = "coupon_campaigns", schema = "coupon")
 public class CouponCampaign {

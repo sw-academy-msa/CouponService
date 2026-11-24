@@ -7,7 +7,7 @@ import lombok.Builder;
 import java.time.Instant;
 import java.util.UUID;
 
-/** HTTP 경계에서 원본 엔티티와 입력을 분리합니다. */
+/** 운영자와 공개 조회에 쓰는 캠페인 요약이며 엔티티를 그대로 응답하지 않습니다. */
 @Builder
 public record CampaignResponse(
         UUID id,

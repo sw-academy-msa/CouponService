@@ -4,7 +4,7 @@ import jakarta.validation.constraints.Positive;
 
 import lombok.Builder;
 
-/** HTTP 경계에서 원본 엔티티와 입력을 분리합니다. */
+/** 운영자 예산 변경 요청입니다. 줄이는 요청은 서비스가 거절합니다. */
 @Builder
 public record BudgetRequest(@Positive int totalBudget) {
     @Override

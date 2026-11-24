@@ -11,7 +11,7 @@ import lombok.Builder;
 import java.time.Instant;
 import java.util.UUID;
 
-/** 쿠폰 상태 원본을 보관하며 외부 서비스와 트랜잭션을 공유하지 않습니다. */
+/** 계정 한 명의 쿠폰 한 장입니다. 상태 변경은 조건부 UPDATE나 행 잠금 뒤에만 합니다. */
 @Entity
 @Table(name = "coupon_issues", schema = "coupon")
 public class CouponIssue {

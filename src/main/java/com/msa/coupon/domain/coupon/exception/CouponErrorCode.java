@@ -4,7 +4,7 @@ import com.msa.coupon.global.error.ErrorCode;
 
 import org.springframework.http.HttpStatus;
 
-/** 입력값 없이 사용자에게 보여 줄 고정 업무 오류만 정의합니다. */
+/** 쿠폰 업무 오류입니다. 잠금 거절 코드는 order-command가 쿠폰 없이 진행할지 판단하는 계약입니다. */
 public enum CouponErrorCode implements ErrorCode {
     COUPON_NOT_FOUND(HttpStatus.NOT_FOUND, "COUPON_NOT_FOUND", "쿠폰을 찾을 수 없습니다."),
     COUPON_NOT_OWNED(HttpStatus.FORBIDDEN, "COUPON_NOT_OWNED", "본인의 쿠폰만 사용할 수 있습니다."),

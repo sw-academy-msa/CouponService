@@ -60,7 +60,6 @@ public class CampaignServiceImpl implements CampaignService {
         return campaigns.findAll().stream().map(CampaignResponse::from).toList();
     }
 
-
     public CampaignResponse create(CampaignRequest r) {
         var kind = CouponCampaign.Kind.valueOf(r.kind());
         if (!r.startsAt().isBefore(r.endsAt())

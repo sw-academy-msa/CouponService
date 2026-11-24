@@ -10,7 +10,7 @@ import org.springframework.data.repository.query.Param;
 import java.time.Instant;
 import java.util.UUID;
 
-/** 원본 행 잠금과 조건부 갱신으로 복제본 간 경합을 제어합니다. */
+/** receipt는 ON CONFLICT DO NOTHING으로 한 번만 넣어 동시 재전달에서도 한 번만 처리합니다. */
 public interface CouponEventReceiptRepository extends JpaRepository<CouponEventReceipt, UUID> {
     @Modifying
     @Query(

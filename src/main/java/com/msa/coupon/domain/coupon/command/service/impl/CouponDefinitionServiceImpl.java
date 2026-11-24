@@ -38,7 +38,6 @@ public class CouponDefinitionServiceImpl implements CouponDefinitionService {
         return DefinitionResponse.from(definition);
     }
 
-
     public DefinitionResponse create(DefinitionRequest r, UUID actor) {
         boolean discount =
                 "AMOUNT".equals(r.discountType())

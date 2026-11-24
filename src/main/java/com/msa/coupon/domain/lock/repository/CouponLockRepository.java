@@ -14,7 +14,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-/** 원본 행 잠금과 조건부 갱신으로 복제본 간 경합을 제어합니다. */
+/** 복구 대상은 SKIP LOCKED로 나눠 가져오고 완료는 행 잠금 뒤 lease token으로 확인합니다. */
 public interface CouponLockRepository extends JpaRepository<CouponLock, UUID> {
     @Query(
             value =

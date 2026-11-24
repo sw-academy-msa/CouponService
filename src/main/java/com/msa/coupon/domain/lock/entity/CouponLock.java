@@ -11,7 +11,7 @@ import lombok.Builder;
 import java.time.Instant;
 import java.util.UUID;
 
-/** 쿠폰 상태 원본을 보관하며 외부 서비스와 트랜잭션을 공유하지 않습니다. */
+/** 주문 하나에 쿠폰 한 장을 잠근 기록입니다. orderId가 기본키라 같은 주문 재요청이 멱등합니다. */
 @Entity
 @Table(name = "coupon_locks", schema = "coupon")
 public class CouponLock {

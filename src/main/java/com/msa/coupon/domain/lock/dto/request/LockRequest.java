@@ -8,7 +8,7 @@ import lombok.Builder;
 import java.time.Instant;
 import java.util.UUID;
 
-/** HTTP 경계에서 원본 엔티티와 입력을 분리합니다. */
+/** order-command의 잠금 요청입니다. accountId는 서비스 토큰을 검증한 내부 호출에서만 받습니다. */
 @Builder
 public record LockRequest(
         @NotNull UUID orderId,

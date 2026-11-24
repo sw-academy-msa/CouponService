@@ -11,7 +11,7 @@ import lombok.Builder;
 import java.time.Instant;
 import java.util.UUID;
 
-/** 쿠폰 상태 원본을 보관하며 외부 서비스와 트랜잭션을 공유하지 않습니다. */
+/** 할인 조건 원본입니다. 발급할 때 쿠폰에 복사하므로 발급 뒤 조건을 고치지 않습니다. */
 @Entity
 @Table(name = "coupon_definitions", schema = "coupon")
 public class CouponDefinition {

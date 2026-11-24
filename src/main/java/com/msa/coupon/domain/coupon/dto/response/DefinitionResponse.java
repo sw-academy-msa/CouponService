@@ -6,7 +6,7 @@ import lombok.Builder;
 
 import java.util.UUID;
 
-/** HTTP 경계에서 원본 엔티티와 입력을 분리합니다. */
+/** 쿠폰 정의 응답이며 만든 운영자 ID는 내보내지 않습니다. */
 @Builder
 public record DefinitionResponse(
         UUID id,

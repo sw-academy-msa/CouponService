@@ -12,7 +12,7 @@ import lombok.Builder;
 import java.time.Instant;
 import java.util.UUID;
 
-/** HTTP 경계에서 원본 엔티티와 입력을 분리합니다. */
+/** 운영자 캠페인 생성 요청입니다. 사람당 상한은 유니크로 강제할 수 있는 1만 받습니다. */
 @Builder
 public record CampaignRequest(
         @NotBlank @Pattern(regexp = "[A-Z0-9_]{1,40}") String code,

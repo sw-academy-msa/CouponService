@@ -14,7 +14,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-/** 원본 행 잠금과 조건부 갱신으로 복제본 간 경합을 제어합니다. */
+/** SKIP LOCKED로 대상 재시도 묶음을 나눠 서버 두 대가 같은 행을 동시에 처리하지 않게 합니다. */
 public interface CouponPendingTargetRepository extends JpaRepository<CouponPendingTarget, UUID> {
     long countByStatus(CouponPendingTarget.Status status);
 

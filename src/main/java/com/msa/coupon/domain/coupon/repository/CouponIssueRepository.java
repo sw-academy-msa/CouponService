@@ -17,7 +17,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-/** 원본 행 잠금과 조건부 갱신으로 복제본 간 경합을 제어합니다. */
+/** 잠금과 만료는 조건부 UPDATE와 SKIP LOCKED로 처리해 서버 두 대가 같은 쿠폰을 두 번 바꾸지 않게 합니다. */
 public interface CouponIssueRepository extends JpaRepository<CouponIssue, UUID> {
     @Query(
             "select i from CouponIssue i where i.accountId=:account and ((:status='AVAILABLE' and"

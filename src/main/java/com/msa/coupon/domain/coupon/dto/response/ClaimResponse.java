@@ -2,7 +2,7 @@ package com.msa.coupon.domain.coupon.dto.response;
 
 import lombok.Builder;
 
-/** HTTP 경계에서 원본 엔티티와 입력을 분리합니다. */
+/** 받기 결과와 새 발급 여부입니다. 컨트롤러가 201과 200을 고르는 데만 씁니다. */
 @Builder
 public record ClaimResponse(IssueResponse coupon, boolean created) {
     @Override

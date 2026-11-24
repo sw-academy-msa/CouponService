@@ -4,7 +4,7 @@ import com.msa.coupon.global.error.ErrorCode;
 
 import org.springframework.http.HttpStatus;
 
-/** 입력값 없이 사용자에게 보여 줄 고정 업무 오류만 정의합니다. */
+/** 잠금 전용 오류입니다. 쿠폰 사용 불가는 CouponErrorCode를 그대로 씁니다. */
 public enum LockErrorCode implements ErrorCode {
     COUPON_LOCK_CONFLICT(HttpStatus.CONFLICT, "COUPON_LOCK_CONFLICT", "이미 처리한 주문과 요청이 다릅니다.");
 

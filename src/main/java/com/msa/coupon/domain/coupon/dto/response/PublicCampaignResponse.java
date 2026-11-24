@@ -4,7 +4,7 @@ import com.msa.coupon.domain.campaign.dto.response.CampaignResponse;
 
 import lombok.Builder;
 
-/** HTTP 경계에서 원본 엔티티와 입력을 분리합니다. */
+/** 비로그인 캠페인 조회 응답입니다. claimed는 로그인했을 때만 채웁니다. */
 @Builder
 public record PublicCampaignResponse(
         CampaignResponse campaign,

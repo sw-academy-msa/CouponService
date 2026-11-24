@@ -9,7 +9,7 @@ import lombok.Builder;
 import java.time.Instant;
 import java.util.UUID;
 
-/** 쿠폰 상태 원본을 보관하며 외부 서비스와 트랜잭션을 공유하지 않습니다. */
+/** 발급, 잠금, 사용, 해제 이력입니다. 운영 통계와 분쟁 확인용으로 상태 변경과 같은 트랜잭션에 씁니다. */
 @Entity
 @Table(name = "coupon_issue_history", schema = "coupon")
 public class CouponIssueHistory {

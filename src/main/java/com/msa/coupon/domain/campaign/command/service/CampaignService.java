@@ -8,7 +8,7 @@ import com.msa.coupon.domain.campaign.entity.CouponCampaign;
 import java.util.List;
 import java.util.UUID;
 
-/** 도메인 경계를 인터페이스로 분리합니다. */
+/** 캠페인은 초안으로 만들고 예산은 늘리기만 허용해 이미 발급한 수보다 줄지 않게 합니다. */
 public interface CampaignService {
     CampaignStatsResponse stats(UUID id);
 

@@ -82,8 +82,6 @@ public class PendingTargetStoreImpl implements PendingTargetStore {
                         mapper.readValue(row.payload, CampaignTarget.class)));
     }
 
-
-
     public void enqueue(CampaignTarget event, String payload) {
         if (!receipts.accept(
                 event.eventId(), "stockdrop.ai.campaign-targets.v1", EventHash.of(payload))) return;

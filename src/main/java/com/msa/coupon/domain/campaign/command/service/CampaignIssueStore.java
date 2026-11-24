@@ -5,7 +5,7 @@ import com.msa.coupon.domain.coupon.dto.response.ClaimResponse;
 import java.time.Instant;
 import java.util.UUID;
 
-/** 도메인 경계를 인터페이스로 분리합니다. */
+/** 예산 증가와 발급 INSERT를 한 트랜잭션으로 묶어 선착순 초과 발급과 중복 발급을 막습니다. */
 public interface CampaignIssueStore {
     ClaimResponse issue(
             String code,

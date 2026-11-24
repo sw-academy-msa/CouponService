@@ -10,7 +10,7 @@ import lombok.Builder;
 
 import java.time.Instant;
 
-/** HTTP 경계에서 원본 엔티티와 입력을 분리합니다. */
+/** 운영자 쿠폰 정의 생성 요청입니다. 할인 방식별 필수 값은 서비스가 다시 검증합니다. */
 @Builder
 public record DefinitionRequest(
         @NotBlank @Size(max = 60) String name,

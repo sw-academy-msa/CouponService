@@ -9,7 +9,7 @@ import lombok.Builder;
 import java.time.Instant;
 import java.util.UUID;
 
-/** 쿠폰 상태 원본을 보관하며 외부 서비스와 트랜잭션을 공유하지 않습니다. */
+/** 처리한 Kafka 이벤트 ID와 본문 해시입니다. 같은 ID의 다른 본문을 계약 오류로 가립니다. */
 @Entity
 @Table(name = "coupon_event_receipts", schema = "coupon")
 public class CouponEventReceipt {

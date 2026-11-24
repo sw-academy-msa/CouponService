@@ -15,7 +15,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-/** 원본 행 잠금과 조건부 갱신으로 복제본 간 경합을 제어합니다. */
+/** 예산 차감은 행 잠금 대신 조건부 UPDATE 반환 행 수로 판단해 짧은 트랜잭션을 유지합니다. */
 public interface CouponCampaignRepository extends JpaRepository<CouponCampaign, UUID> {
     @Query(
             value =
