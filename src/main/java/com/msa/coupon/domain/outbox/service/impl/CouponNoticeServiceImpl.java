@@ -4,24 +4,30 @@ import com.msa.coupon.domain.outbox.entity.OutboxEvent;
 import com.msa.coupon.domain.outbox.repository.OutboxEventRepository;
 import com.msa.coupon.domain.outbox.service.CouponNoticeService;
 
-import lombok.RequiredArgsConstructor;
-
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.*;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 import tools.jackson.databind.ObjectMapper;
 
 import java.nio.charset.StandardCharsets;
-import java.time.*;
-import java.util.*;
+import java.time.Clock;
+import java.time.Instant;
+import java.util.LinkedHashMap;
+import java.util.UUID;
 
 /** 알림 식별자를 안정적으로 생성해 중복 전송을 소비자가 제거할 수 있게 합니다. */
 @Service
-@RequiredArgsConstructor
 public class CouponNoticeServiceImpl implements CouponNoticeService {
     private final OutboxEventRepository outbox;
     private final ObjectMapper mapper;
     private final Clock clock;
+
+    public CouponNoticeServiceImpl(OutboxEventRepository outbox, ObjectMapper mapper, Clock clock) {
+        this.outbox = outbox;
+        this.mapper = mapper;
+        this.clock = clock;
+    }
 
     @Transactional(propagation = Propagation.MANDATORY)
     public void append(

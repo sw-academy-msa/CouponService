@@ -5,6 +5,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.msa.coupon.domain.campaign.command.service.CampaignService;
 import com.msa.coupon.domain.campaign.dto.request.CampaignRequest;
+import com.msa.coupon.domain.campaign.entity.CouponCampaign;
 import com.msa.coupon.domain.coupon.command.service.CouponDefinitionService;
 import com.msa.coupon.domain.coupon.dto.request.DefinitionRequest;
 import com.msa.coupon.global.config.database.CouponDatabaseTestSupport;
@@ -64,7 +65,7 @@ class OpenApiContractTest extends CouponDatabaseTestSupport {
                                 now.minusSeconds(1),
                                 now.plusSeconds(3600),
                                 false));
-        campaigns.state(campaign.id(), "ACTIVE");
+        campaigns.state(campaign.id(), CouponCampaign.Status.ACTIVE);
         mvc.perform(get("/api/v1/coupons/campaigns/" + code))
                 .andExpect(status().isOk())
                 .andExpect(header().string("Cache-Control", "no-store"));

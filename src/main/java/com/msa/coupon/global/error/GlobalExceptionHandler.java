@@ -5,11 +5,16 @@ import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.OptimisticLockingFailureException;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.web.HttpMediaTypeNotAcceptableException;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
@@ -42,7 +47,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler({
         HttpMessageNotReadableException.class,
         MethodArgumentTypeMismatchException.class,
-        org.springframework.web.bind.MissingServletRequestParameterException.class
+        MissingServletRequestParameterException.class
     })
     public ResponseEntity<ErrorResponse> invalid(Exception exception) {
         return response(CommonErrorCode.INVALID_REQUEST);
@@ -63,21 +68,21 @@ public class GlobalExceptionHandler {
         return response(CommonErrorCode.RESOURCE_NOT_FOUND);
     }
 
-    @ExceptionHandler(org.springframework.web.HttpRequestMethodNotSupportedException.class)
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
     public ResponseEntity<ErrorResponse> method(Exception exception) {
         return response(CommonErrorCode.METHOD_NOT_ALLOWED);
     }
 
-    @ExceptionHandler(org.springframework.web.HttpMediaTypeNotSupportedException.class)
+    @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
     public ResponseEntity<ErrorResponse> media(Exception exception) {
         return response(CommonErrorCode.UNSUPPORTED_MEDIA_TYPE);
     }
 
     /** Accept 협상이 실패해도 JSON 오류 응답을 기록할 수 있도록 형식을 명시합니다. */
-    @ExceptionHandler(org.springframework.web.HttpMediaTypeNotAcceptableException.class)
+    @ExceptionHandler(HttpMediaTypeNotAcceptableException.class)
     public ResponseEntity<ErrorResponse> notAcceptable(Exception exception) {
         return ResponseEntity.status(CommonErrorCode.NOT_ACCEPTABLE.status())
-                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                .contentType(MediaType.APPLICATION_JSON)
                 .header("Cache-Control", "no-store")
                 .body(ErrorResponse.of(CommonErrorCode.NOT_ACCEPTABLE, MDC.get("traceId")));
     }

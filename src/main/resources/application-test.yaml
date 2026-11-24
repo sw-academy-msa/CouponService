@@ -6,10 +6,6 @@ coupon:
     enabled: false
   scheduler:
     enabled: false
-  messaging:
-    enabled: false
-  processing:
-    enabled: false
   outbox:
     publisher-enabled: false
 eureka:

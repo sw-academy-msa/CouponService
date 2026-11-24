@@ -1,42 +1,43 @@
 package com.msa.coupon.domain.coupon.command.service.impl;
 
-import com.msa.coupon.domain.campaign.dto.request.*;
-import com.msa.coupon.domain.campaign.dto.response.*;
-import com.msa.coupon.domain.campaign.entity.*;
-import com.msa.coupon.domain.campaign.exception.*;
-import com.msa.coupon.domain.campaign.repository.*;
 import com.msa.coupon.domain.coupon.command.service.CouponDefinitionService;
-import com.msa.coupon.domain.coupon.dto.request.*;
-import com.msa.coupon.domain.coupon.dto.response.*;
-import com.msa.coupon.domain.coupon.entity.*;
-import com.msa.coupon.domain.coupon.exception.*;
-import com.msa.coupon.domain.coupon.repository.*;
-
-import lombok.RequiredArgsConstructor;
+import com.msa.coupon.domain.coupon.dto.request.DefinitionRequest;
+import com.msa.coupon.domain.coupon.dto.response.DefinitionResponse;
+import com.msa.coupon.domain.coupon.entity.CouponDefinition;
+import com.msa.coupon.domain.coupon.exception.CouponErrorCode;
+import com.msa.coupon.domain.coupon.exception.CouponException;
+import com.msa.coupon.domain.coupon.repository.CouponDefinitionRepository;
 
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.*;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.time.*;
-import java.util.*;
+import java.time.Clock;
+import java.util.List;
+import java.util.Set;
+import java.util.UUID;
 
 /** 정의는 생성 후 불변 조건으로 발급 시점 스냅샷을 보장합니다. */
 @Service
-@RequiredArgsConstructor
 @Transactional(timeout = 5)
 public class CouponDefinitionServiceImpl implements CouponDefinitionService {
+    private final CouponDefinitionRepository definitions;
+    private final Clock clock;
+
+    public CouponDefinitionServiceImpl(CouponDefinitionRepository definitions, Clock clock) {
+        this.definitions = definitions;
+        this.clock = clock;
+    }
+
     public DefinitionResponse retire(UUID id) {
         var definition =
                 definitions
                         .findById(id)
                         .orElseThrow(() -> new CouponException(CouponErrorCode.COUPON_NOT_FOUND));
-        definition.status = "RETIRED";
+        definition.status = CouponDefinition.Status.RETIRED;
         definition.updatedAt = clock.instant();
         return DefinitionResponse.from(definition);
     }
 
-    private final CouponDefinitionRepository definitions;
-    private final Clock clock;
 
     public DefinitionResponse create(DefinitionRequest r, UUID actor) {
         boolean discount =
@@ -75,7 +76,7 @@ public class CouponDefinitionServiceImpl implements CouponDefinitionService {
                                 .validUntil(r.validUntil())
                                 .validMinutes(r.validMinutes())
                                 .noticeLeadMinutes(r.noticeLeadMinutes())
-                                .status("ACTIVE")
+                                .status(CouponDefinition.Status.ACTIVE)
                                 .version(1)
                                 .createdBy(actor)
                                 .createdAt(now)

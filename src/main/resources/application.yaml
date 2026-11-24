@@ -49,10 +49,6 @@ server:
   forward-headers-strategy: none
 coupon:
   # 원본·Outbox 저장은 항상 수행하고 외부 처리·소비·발행만 명시적으로 활성화합니다.
-  messaging:
-    enabled: ${COUPON_MESSAGING_ENABLED:false}
-  processing:
-    enabled: ${COUPON_PROCESSING_ENABLED:false}
   outbox:
     publisher-enabled: ${COUPON_OUTBOX_PUBLISHER_ENABLED:false}
   api:
@@ -61,6 +57,9 @@ coupon:
     enabled: ${COUPON_CONSUMER_ENABLED:false}
   scheduler:
     enabled: ${COUPON_SCHEDULER_ENABLED:false}
+  campaign:
+    # 시연 캠페인을 받을 테스트 계정 UUID 목록(쉼표 구분, 최대 10개)입니다. 비어 있으면 시연 발급을 모두 막습니다.
+    demo-account-ids: ${CAMPAIGN_DEMO_ACCOUNT_IDS:}
   clients:
     scheme: ${COUPON_INTERNAL_SCHEME:https}
     allow-plain-http: ${COUPON_ALLOW_PLAIN_HTTP:false}
@@ -114,7 +113,7 @@ springdoc:
     enabled: false
 logging:
   level:
-    # SQL 오류의 행 원문에 결제 데이터가 노출되지 않게 합니다.
+    # SQL 오류의 행 원문에 계정·주문 식별자가 노출되지 않게 합니다.
     org.hibernate.engine.jdbc.spi.SqlExceptionHelper: 'OFF'
 
 # 업무 JWT와 분리된 읽기 전용 수집 토큰입니다. 빈 값이면 메트릭 접근을 거부합니다.

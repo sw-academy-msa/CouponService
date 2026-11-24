@@ -1,6 +1,10 @@
 package com.msa.coupon.domain.lock.entity;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 
 import lombok.Builder;
 
@@ -11,13 +15,23 @@ import java.util.UUID;
 @Entity
 @Table(name = "coupon_locks", schema = "coupon")
 public class CouponLock {
+    /** 주문 결과를 모르면 LOCKED를 유지하고 USED, RELEASED는 끝 상태입니다. */
+    public enum State {
+        LOCKED,
+        USED,
+        RELEASED
+    }
+
     @Id public UUID orderId;
     public UUID issueId;
     public UUID accountId;
     public UUID productId;
     public long itemsAmount;
     public String requestHash;
-    public String state;
+
+    @Enumerated(EnumType.STRING)
+    public State state;
+
     public Instant holdUntil;
     public Instant nextCheckAt;
     public int checkAttempts;
@@ -39,7 +53,7 @@ public class CouponLock {
             UUID productId,
             long itemsAmount,
             String requestHash,
-            String state,
+            State state,
             Instant holdUntil,
             Instant nextCheckAt,
             int checkAttempts,

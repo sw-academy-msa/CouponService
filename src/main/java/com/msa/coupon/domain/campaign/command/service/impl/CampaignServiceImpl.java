@@ -1,31 +1,46 @@
 package com.msa.coupon.domain.campaign.command.service.impl;
 
 import com.msa.coupon.domain.campaign.command.service.CampaignService;
-import com.msa.coupon.domain.campaign.dto.request.*;
-import com.msa.coupon.domain.campaign.dto.response.*;
-import com.msa.coupon.domain.campaign.entity.*;
-import com.msa.coupon.domain.campaign.exception.*;
-import com.msa.coupon.domain.campaign.repository.*;
-import com.msa.coupon.domain.coupon.dto.request.*;
-import com.msa.coupon.domain.coupon.dto.response.*;
-import com.msa.coupon.domain.coupon.entity.*;
-import com.msa.coupon.domain.coupon.exception.*;
-import com.msa.coupon.domain.coupon.repository.*;
-
-import lombok.RequiredArgsConstructor;
+import com.msa.coupon.domain.campaign.dto.request.CampaignRequest;
+import com.msa.coupon.domain.campaign.dto.response.CampaignResponse;
+import com.msa.coupon.domain.campaign.dto.response.CampaignStatsResponse;
+import com.msa.coupon.domain.campaign.entity.CouponCampaign;
+import com.msa.coupon.domain.campaign.exception.CampaignErrorCode;
+import com.msa.coupon.domain.campaign.exception.CampaignException;
+import com.msa.coupon.domain.campaign.repository.CouponCampaignRepository;
+import com.msa.coupon.domain.coupon.entity.CouponDefinition;
+import com.msa.coupon.domain.coupon.exception.CouponErrorCode;
+import com.msa.coupon.domain.coupon.exception.CouponException;
+import com.msa.coupon.domain.coupon.repository.CouponDefinitionRepository;
+import com.msa.coupon.domain.coupon.repository.CouponIssueHistoryRepository;
 
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.*;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.time.*;
-import java.util.*;
+import java.time.Clock;
+import java.util.List;
+import java.util.Set;
+import java.util.UUID;
 
 /** 캠페인 예산 감소와 기간 오류를 막습니다. */
 @Service
-@RequiredArgsConstructor
 @Transactional(timeout = 5)
 public class CampaignServiceImpl implements CampaignService {
     private final CouponIssueHistoryRepository histories;
+    private final CouponCampaignRepository campaigns;
+    private final CouponDefinitionRepository definitions;
+    private final Clock clock;
+
+    public CampaignServiceImpl(
+            CouponIssueHistoryRepository histories,
+            CouponCampaignRepository campaigns,
+            CouponDefinitionRepository definitions,
+            Clock clock) {
+        this.histories = histories;
+        this.campaigns = campaigns;
+        this.definitions = definitions;
+        this.clock = clock;
+    }
 
     @Transactional(readOnly = true)
     public CampaignStatsResponse stats(UUID id) {
@@ -45,21 +60,18 @@ public class CampaignServiceImpl implements CampaignService {
         return campaigns.findAll().stream().map(CampaignResponse::from).toList();
     }
 
-    private final CouponCampaignRepository campaigns;
-    private final CouponDefinitionRepository definitions;
-    private final Clock clock;
 
     public CampaignResponse create(CampaignRequest r) {
-        if (!Set.of("CLAIM", "TARGETED", "MEMBER").contains(r.kind())
-                || !r.startsAt().isBefore(r.endsAt())
+        var kind = CouponCampaign.Kind.valueOf(r.kind());
+        if (!r.startsAt().isBefore(r.endsAt())
                 || r.perAccountLimit() != 1) throw new CouponException(CouponErrorCode.INVALID);
         var d =
                 definitions
                         .findById(r.definitionId())
                         .orElseThrow(() -> new CouponException(CouponErrorCode.COUPON_NOT_FOUND));
-        if (!"ACTIVE".equals(d.status)
-                || (Set.of("CLAIM", "MEMBER").contains(r.kind()) && !"ALL".equals(d.scope))
-                || ("TARGETED".equals(r.kind())
+        if (d.status != CouponDefinition.Status.ACTIVE
+                || (kind != CouponCampaign.Kind.TARGETED && !"ALL".equals(d.scope))
+                || (kind == CouponCampaign.Kind.TARGETED
                         && (!"PRODUCT".equals(d.scope)
                                 || !Set.of(
                                                 "SALE_OPEN",
@@ -75,22 +87,22 @@ public class CampaignServiceImpl implements CampaignService {
                                 .id(UUID.randomUUID())
                                 .code(r.code())
                                 .definitionId(r.definitionId())
-                                .kind(r.kind())
+                                .kind(kind)
                                 .ruleCode(r.ruleCode())
                                 .totalBudget(r.totalBudget())
                                 .perAccountLimit(1)
                                 .startsAt(r.startsAt())
                                 .endsAt(r.endsAt())
-                                .status("DRAFT")
+                                .status(CouponCampaign.Status.DRAFT)
                                 .demo(r.demo())
                                 .createdAt(n)
                                 .updatedAt(n)
                                 .build()));
     }
 
-    public CampaignResponse state(UUID id, String status) {
+    public CampaignResponse state(UUID id, CouponCampaign.Status status) {
         var c = get(id);
-        if (!Set.of("ACTIVE", "PAUSED").contains(status))
+        if (status != CouponCampaign.Status.ACTIVE && status != CouponCampaign.Status.PAUSED)
             throw new CouponException(CouponErrorCode.INVALID);
         c.status = status;
         c.updatedAt = clock.instant();

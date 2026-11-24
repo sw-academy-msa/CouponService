@@ -2,13 +2,21 @@ package com.msa.coupon.domain.campaign.repository;
 
 import com.msa.coupon.domain.campaign.entity.CouponPendingTarget;
 
-import org.springframework.data.jpa.repository.*;
+import jakarta.persistence.LockModeType;
 
-import java.util.*;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
+import java.time.Instant;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 
 /** 원본 행 잠금과 조건부 갱신으로 복제본 간 경합을 제어합니다. */
 public interface CouponPendingTargetRepository extends JpaRepository<CouponPendingTarget, UUID> {
-    long countByStatus(String status);
+    long countByStatus(CouponPendingTarget.Status status);
 
     @Query(
             value =
@@ -17,10 +25,10 @@ public interface CouponPendingTargetRepository extends JpaRepository<CouponPendi
                         + " order by next_attempt_at limit 10 for update skip locked",
             nativeQuery = true)
     List<CouponPendingTarget> due(
-            @org.springframework.data.repository.query.Param("now") java.time.Instant now);
+            @Param("now") Instant now);
 
-    @Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select p from CouponPendingTarget p where p.eventId=:id")
     Optional<CouponPendingTarget> lock(
-            @org.springframework.data.repository.query.Param("id") UUID id);
+            @Param("id") UUID id);
 }

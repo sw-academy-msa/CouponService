@@ -2,7 +2,7 @@ package com.msa.coupon.global.config.client;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
-/** ?? ???? ??? ID? ?? Account ?? ??? ?????. */
+/** 내부 호출 대상 서비스 ID와 Account 서비스 토큰 자격을 묶습니다. 비밀값은 문자열에 노출하지 않습니다. */
 @ConfigurationProperties("coupon.clients")
 public record ClientProperties(
         String scheme,

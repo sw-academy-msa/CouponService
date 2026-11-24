@@ -1,26 +1,37 @@
 package com.msa.coupon.domain.lock.client.impl;
 
-import com.msa.coupon.domain.eligibility.client.*;
+import com.msa.coupon.domain.eligibility.client.InternalHttp;
+import com.msa.coupon.domain.eligibility.client.RemoteUnavailable;
+import com.msa.coupon.domain.eligibility.client.ServiceTokenProvider;
 import com.msa.coupon.domain.lock.client.OrderOutcomeClient;
 import com.msa.coupon.domain.lock.dto.response.OrderOutcome;
 import com.msa.coupon.global.config.client.ClientProperties;
-
-import lombok.RequiredArgsConstructor;
 
 import org.springframework.stereotype.Component;
 
 import tools.jackson.databind.ObjectMapper;
 
-import java.util.*;
+import java.util.Map;
+import java.util.UUID;
 
 /** 인증된 주문 조회 결과만 사용하고 타임아웃과 계약 오류는 불명으로 남깁니다. */
 @Component
-@RequiredArgsConstructor
 public class OrderOutcomeClientImpl implements OrderOutcomeClient {
     private final InternalHttp http;
     private final ClientProperties properties;
     private final ServiceTokenProvider tokens;
     private final ObjectMapper mapper;
+
+    public OrderOutcomeClientImpl(
+            InternalHttp http,
+            ClientProperties properties,
+            ServiceTokenProvider tokens,
+            ObjectMapper mapper) {
+        this.http = http;
+        this.properties = properties;
+        this.tokens = tokens;
+        this.mapper = mapper;
+    }
 
     public OrderOutcome outcome(UUID orderId) {
         try {

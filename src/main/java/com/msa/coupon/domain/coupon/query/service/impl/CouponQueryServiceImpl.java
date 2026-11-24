@@ -1,28 +1,33 @@
 package com.msa.coupon.domain.coupon.query.service.impl;
 
-import com.msa.coupon.domain.campaign.dto.request.*;
-import com.msa.coupon.domain.campaign.dto.response.*;
-import com.msa.coupon.domain.campaign.entity.*;
-import com.msa.coupon.domain.campaign.exception.*;
-import com.msa.coupon.domain.campaign.repository.*;
-import com.msa.coupon.domain.coupon.dto.request.*;
-import com.msa.coupon.domain.coupon.dto.response.*;
-import com.msa.coupon.domain.coupon.entity.*;
-import com.msa.coupon.domain.coupon.exception.*;
+import com.msa.coupon.domain.campaign.dto.response.CampaignResponse;
+import com.msa.coupon.domain.campaign.entity.CouponCampaign;
+import com.msa.coupon.domain.campaign.exception.CampaignErrorCode;
+import com.msa.coupon.domain.campaign.exception.CampaignException;
+import com.msa.coupon.domain.campaign.repository.CouponCampaignRepository;
+import com.msa.coupon.domain.coupon.dto.response.ApplicableCouponResponse;
+import com.msa.coupon.domain.coupon.dto.response.DefinitionResponse;
+import com.msa.coupon.domain.coupon.dto.response.IssueResponse;
+import com.msa.coupon.domain.coupon.dto.response.PublicCampaignResponse;
+import com.msa.coupon.domain.coupon.exception.CouponErrorCode;
+import com.msa.coupon.domain.coupon.exception.CouponException;
 import com.msa.coupon.domain.coupon.query.service.CouponQueryService;
-import com.msa.coupon.domain.coupon.repository.*;
+import com.msa.coupon.domain.coupon.repository.CouponDefinitionRepository;
+import com.msa.coupon.domain.coupon.repository.CouponIssueRepository;
 
-import lombok.RequiredArgsConstructor;
-
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.*;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.time.*;
-import java.util.*;
+import java.math.BigInteger;
+import java.time.Clock;
+import java.util.List;
+import java.util.Set;
+import java.util.UUID;
 
 /** 조회 응답에는 엔티티를 노출하지 않습니다. */
 @Service
-@RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class CouponQueryServiceImpl implements CouponQueryService {
     private final CouponCampaignRepository campaigns;
@@ -30,11 +35,22 @@ public class CouponQueryServiceImpl implements CouponQueryService {
     private final CouponIssueRepository issues;
     private final Clock clock;
 
+    public CouponQueryServiceImpl(
+            CouponCampaignRepository campaigns,
+            CouponDefinitionRepository definitions,
+            CouponIssueRepository issues,
+            Clock clock) {
+        this.campaigns = campaigns;
+        this.definitions = definitions;
+        this.issues = issues;
+        this.clock = clock;
+    }
+
     public PublicCampaignResponse campaign(String code, UUID account) {
         var c =
                 campaigns
                         .findByCode(code)
-                        .filter(x -> "CLAIM".equals(x.kind))
+                        .filter(x -> x.kind == CouponCampaign.Kind.CLAIM)
                         .orElseThrow(
                                 () -> new CampaignException(CampaignErrorCode.CAMPAIGN_NOT_FOUND));
         var d =
@@ -61,10 +77,7 @@ public class CouponQueryServiceImpl implements CouponQueryService {
                         account,
                         status,
                         clock.instant(),
-                        org.springframework.data.domain.PageRequest.of(
-                                page,
-                                size,
-                                org.springframework.data.domain.Sort.by("issuedAt").descending()))
+                        PageRequest.of(page, size, Sort.by("issuedAt").descending()))
                 .stream()
                 .map(IssueResponse::from)
                 .toList();
@@ -78,13 +91,10 @@ public class CouponQueryServiceImpl implements CouponQueryService {
                             long discount =
                                     "AMOUNT".equals(i.discountType)
                                             ? i.amount
-                                            : java.math.BigInteger.valueOf(items)
-                                                    .multiply(
-                                                            java.math.BigInteger.valueOf(i.rateBps))
-                                                    .divide(java.math.BigInteger.valueOf(10000))
-                                                    .min(
-                                                            java.math.BigInteger.valueOf(
-                                                                    i.maxDiscount))
+                                            : BigInteger.valueOf(items)
+                                                    .multiply(BigInteger.valueOf(i.rateBps))
+                                                    .divide(BigInteger.valueOf(10000))
+                                                    .min(BigInteger.valueOf(i.maxDiscount))
                                                     .longValueExact();
                             return new ApplicableCouponResponse(
                                     IssueResponse.from(i),

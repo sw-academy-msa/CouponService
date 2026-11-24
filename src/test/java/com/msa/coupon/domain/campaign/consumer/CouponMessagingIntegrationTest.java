@@ -6,22 +6,32 @@ import static org.awaitility.Awaitility.await;
 import com.msa.coupon.domain.campaign.dto.request.MembershipEvent;
 import com.msa.coupon.global.config.database.CouponDatabaseTestSupport;
 
-import org.apache.kafka.clients.admin.*;
-import org.apache.kafka.clients.consumer.*;
-import org.apache.kafka.common.serialization.*;
+import org.apache.kafka.clients.admin.Admin;
+import org.apache.kafka.clients.admin.NewTopic;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.common.serialization.ByteArrayDeserializer;
+import org.apache.kafka.common.serialization.StringDeserializer;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.listener.DefaultErrorHandler;
-import org.springframework.test.context.*;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.kafka.KafkaContainer;
 
 import tools.jackson.databind.ObjectMapper;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -80,7 +90,7 @@ class CouponMessagingIntegrationTest extends CouponDatabaseTestSupport {
     @Test
     void invalidContractGoesToOriginalPartitionDlt() throws Exception {
         String key = UUID.randomUUID().toString();
-        byte[] body = "{}".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        byte[] body = "{}".getBytes(StandardCharsets.UTF_8);
         try (var consumer = dlt(ORDERS)) {
             kafka.send(ORDERS, 1, key, body).get(10, TimeUnit.SECONDS);
             var found = new ArrayList<ConsumerRecord<String, byte[]>>();

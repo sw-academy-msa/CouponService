@@ -3,16 +3,32 @@ package com.msa.coupon.domain.coupon.service.impl;
 import static org.assertj.core.api.Assertions.*;
 
 import com.msa.coupon.domain.campaign.command.service.CampaignService;
+import com.msa.coupon.domain.campaign.command.service.PendingTargetStore;
+import com.msa.coupon.domain.campaign.consumer.MembershipEventConsumer;
 import com.msa.coupon.domain.campaign.dto.request.CampaignRequest;
+import com.msa.coupon.domain.campaign.dto.request.CampaignTarget;
+import com.msa.coupon.domain.campaign.dto.request.MembershipEvent;
+import com.msa.coupon.domain.campaign.entity.CouponCampaign;
+import com.msa.coupon.domain.campaign.entity.CouponPendingTarget;
+import com.msa.coupon.domain.campaign.exception.CampaignException;
 import com.msa.coupon.domain.campaign.repository.CouponCampaignRepository;
-import com.msa.coupon.domain.coupon.command.service.*;
+import com.msa.coupon.domain.campaign.repository.CouponPendingTargetRepository;
+import com.msa.coupon.domain.coupon.command.service.CouponClaimService;
+import com.msa.coupon.domain.coupon.command.service.CouponDefinitionService;
+import com.msa.coupon.domain.coupon.command.service.CouponMaintenanceService;
 import com.msa.coupon.domain.coupon.dto.request.DefinitionRequest;
+import com.msa.coupon.domain.coupon.entity.CouponIssue;
+import com.msa.coupon.domain.coupon.exception.CouponException;
 import com.msa.coupon.domain.coupon.query.service.CouponQueryService;
 import com.msa.coupon.domain.coupon.repository.CouponIssueRepository;
 import com.msa.coupon.domain.lock.dto.request.LockRequest;
 import com.msa.coupon.domain.lock.dto.response.OrderOutcome;
+import com.msa.coupon.domain.lock.exception.LockException;
 import com.msa.coupon.domain.lock.repository.CouponLockRepository;
-import com.msa.coupon.domain.lock.service.*;
+import com.msa.coupon.domain.lock.service.CouponLockService;
+import com.msa.coupon.domain.lock.service.CouponLockWorkStore;
+import com.msa.coupon.domain.outbox.repository.OutboxEventRepository;
+import com.msa.coupon.domain.receipt.InvalidCouponEventException;
 import com.msa.coupon.global.config.database.CouponDatabaseTestSupport;
 
 import org.junit.jupiter.api.Test;
@@ -21,8 +37,16 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
 
-import java.util.*;
-import java.util.concurrent.*;
+import tools.jackson.databind.ObjectMapper;
+
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.function.IntFunction;
 
 /** 예산과 잠금 경합을 실제 커밋으로 실행하여 초과 발급을 검출합니다. */
@@ -80,9 +104,11 @@ class CouponConcurrencyIntegrationTest extends CouponDatabaseTestSupport {
                         .findFirst()
                         .orElseThrow();
         lockStore.complete(first, new OrderOutcome(order, "CONFIRMED", true, 1000L, false));
-        assertThat(issues.findById(issue).orElseThrow().status).isEqualTo("LOCKED");
+        assertThat(issues.findById(issue).orElseThrow().status)
+                .isEqualTo(CouponIssue.Status.LOCKED);
         lockStore.complete(second, new OrderOutcome(order, null, null, null, true));
-        assertThat(issues.findById(issue).orElseThrow().status).isEqualTo("LOCKED");
+        assertThat(issues.findById(issue).orElseThrow().status)
+                .isEqualTo(CouponIssue.Status.LOCKED);
         clock.set(lockedAt.plusSeconds(86401));
         var finalWork =
                 lockStore.claim().stream()
@@ -91,7 +117,8 @@ class CouponConcurrencyIntegrationTest extends CouponDatabaseTestSupport {
                         .orElseThrow();
         lockStore.complete(finalWork, new OrderOutcome(order, null, null, null, true));
         assertThat(locks.findById(order).orElseThrow().finishReason).isEqualTo("ORDER_NOT_FOUND");
-        assertThat(issues.findById(issue).orElseThrow().status).isEqualTo("EXPIRED");
+        assertThat(issues.findById(issue).orElseThrow().status)
+                .isEqualTo(CouponIssue.Status.EXPIRED);
     }
 
     @Test
@@ -125,11 +152,11 @@ class CouponConcurrencyIntegrationTest extends CouponDatabaseTestSupport {
                                 now.minusSeconds(1),
                                 now.plusSeconds(3600),
                                 false));
-        campaigns.state(campaign.id(), "ACTIVE");
+        campaigns.state(campaign.id(), CouponCampaign.Status.ACTIVE);
         for (int n = 0; n < 2; n++) {
             UUID product = UUID.randomUUID();
             var event =
-                    new com.msa.coupon.domain.campaign.dto.request.CampaignTarget(
+                    new CampaignTarget(
                             UUID.randomUUID(),
                             1,
                             "CAMPAIGN_TARGET",
@@ -161,16 +188,16 @@ class CouponConcurrencyIntegrationTest extends CouponDatabaseTestSupport {
         assertThat(campaigns.stats(campaign.id()).issued()).isEqualTo(1);
     }
 
-    @Autowired com.msa.coupon.domain.campaign.command.service.PendingTargetStore targets;
-    @Autowired com.msa.coupon.domain.campaign.repository.CouponPendingTargetRepository pending;
-    @Autowired com.msa.coupon.domain.outbox.repository.OutboxEventRepository outbox;
-    @Autowired com.msa.coupon.domain.campaign.consumer.MembershipEventConsumer membership;
-    @Autowired tools.jackson.databind.ObjectMapper mapper;
+    @Autowired PendingTargetStore targets;
+    @Autowired CouponPendingTargetRepository pending;
+    @Autowired OutboxEventRepository outbox;
+    @Autowired MembershipEventConsumer membership;
+    @Autowired ObjectMapper mapper;
 
     @Test
     void pendingConsentFailureRetainsWorkAndRejectsPayloadConflict() {
         var event =
-                new com.msa.coupon.domain.campaign.dto.request.CampaignTarget(
+                new CampaignTarget(
                         UUID.randomUUID(),
                         1,
                         "CAMPAIGN_TARGET",
@@ -186,7 +213,7 @@ class CouponConcurrencyIntegrationTest extends CouponDatabaseTestSupport {
         targets.enqueue(event, body);
         targets.enqueue(event, body);
         assertThatThrownBy(() -> targets.enqueue(event, body + " "))
-                .isInstanceOf(com.msa.coupon.domain.receipt.InvalidCouponEventException.class);
+                .isInstanceOf(InvalidCouponEventException.class);
         var work =
                 targets.claim().stream()
                         .filter(w -> w.eventId().equals(event.eventId()))
@@ -194,7 +221,8 @@ class CouponConcurrencyIntegrationTest extends CouponDatabaseTestSupport {
                         .orElseThrow();
         assertThat(targets.claim()).noneMatch(w -> w.eventId().equals(event.eventId()));
         targets.complete(work, null);
-        assertThat(pending.findById(event.eventId()).orElseThrow().status).isEqualTo("PENDING");
+        assertThat(pending.findById(event.eventId()).orElseThrow().status)
+                .isEqualTo(CouponPendingTarget.Status.PENDING);
         clock.set(clock.instant().plusSeconds(601));
         var retry =
                 targets.claim().stream()
@@ -205,7 +233,8 @@ class CouponConcurrencyIntegrationTest extends CouponDatabaseTestSupport {
         assertThat(pending.findById(event.eventId()).orElseThrow().leaseToken)
                 .isEqualTo(retry.token());
         targets.complete(retry, false);
-        assertThat(pending.findById(event.eventId()).orElseThrow().status).isEqualTo("DONE");
+        assertThat(pending.findById(event.eventId()).orElseThrow().status)
+                .isEqualTo(CouponPendingTarget.Status.DONE);
     }
 
     @Test
@@ -239,11 +268,11 @@ class CouponConcurrencyIntegrationTest extends CouponDatabaseTestSupport {
                                 now.minusSeconds(1),
                                 now.plusSeconds(3600),
                                 false));
-        campaigns.state(campaign.id(), "ACTIVE");
+        campaigns.state(campaign.id(), CouponCampaign.Status.ACTIVE);
         UUID subscription = UUID.randomUUID();
         UUID account = UUID.randomUUID();
         var event =
-                new com.msa.coupon.domain.campaign.dto.request.MembershipEvent(
+                new MembershipEvent(
                         UUID.randomUUID(),
                         1,
                         "MEMBERSHIP_STARTED",
@@ -266,7 +295,7 @@ class CouponConcurrencyIntegrationTest extends CouponDatabaseTestSupport {
                         e ->
                                 e.payload.contains("COUPON_MEMBER_ARRIVED")
                                         && e.partitionKey.equals(account.toString()));
-        campaigns.state(campaign.id(), "PAUSED");
+        campaigns.state(campaign.id(), CouponCampaign.Status.PAUSED);
     }
 
     @Test
@@ -295,9 +324,11 @@ class CouponConcurrencyIntegrationTest extends CouponDatabaseTestSupport {
                         clock.instant().plusSeconds(300)));
         clock.set(clock.instant().plusSeconds(1000));
         maintenance.expire();
-        assertThat(issues.findById(issue).orElseThrow().status).isEqualTo("LOCKED");
+        assertThat(issues.findById(issue).orElseThrow().status)
+                .isEqualTo(CouponIssue.Status.LOCKED);
         lockStore.lifecycle(order, "EXPIRED", false, 0);
-        assertThat(issues.findById(issue).orElseThrow().status).isEqualTo("EXPIRED");
+        assertThat(issues.findById(issue).orElseThrow().status)
+                .isEqualTo(CouponIssue.Status.EXPIRED);
     }
 
     @Autowired CouponDefinitionService definitions;
@@ -342,7 +373,7 @@ class CouponConcurrencyIntegrationTest extends CouponDatabaseTestSupport {
                                 now.minusSeconds(1),
                                 now.plusSeconds(3600),
                                 false));
-        campaigns.state(campaign.id(), "ACTIVE");
+        campaigns.state(campaign.id(), CouponCampaign.Status.ACTIVE);
         return campaign.code();
     }
 
@@ -376,7 +407,7 @@ class CouponConcurrencyIntegrationTest extends CouponDatabaseTestSupport {
                             try {
                                 return claims.claim(code, UUID.randomUUID()).created();
                             } catch (
-                                    com.msa.coupon.domain.campaign.exception.CampaignException
+                                    CampaignException
                                             soldOut) {
                                 return false;
                             }
@@ -421,7 +452,7 @@ class CouponConcurrencyIntegrationTest extends CouponDatabaseTestSupport {
                                                 request.sellerId(),
                                                 30000,
                                                 request.holdUntil())))
-                .isInstanceOf(com.msa.coupon.domain.lock.exception.LockException.class);
+                .isInstanceOf(LockException.class);
         clock.set(clock.instant().plusSeconds(901));
         var work =
                 lockStore.claim().stream()
@@ -430,11 +461,12 @@ class CouponConcurrencyIntegrationTest extends CouponDatabaseTestSupport {
                         .orElseThrow();
         assertThat(lockStore.claim()).noneMatch(w -> w.orderId().equals(order));
         lockStore.complete(work, null);
-        assertThat(issues.findById(issue).orElseThrow().status).isEqualTo("LOCKED");
+        assertThat(issues.findById(issue).orElseThrow().status)
+                .isEqualTo(CouponIssue.Status.LOCKED);
         lockStore.lifecycle(order, "CONFIRMED", true, 1000);
         lockStore.lifecycle(order, "CONFIRMED", true, 1000);
         lockStore.lifecycle(order, "FAILED", false, 0);
-        assertThat(issues.findById(issue).orElseThrow().status).isEqualTo("USED");
+        assertThat(issues.findById(issue).orElseThrow().status).isEqualTo(CouponIssue.Status.USED);
     }
 
     @Test
@@ -457,7 +489,7 @@ class CouponConcurrencyIntegrationTest extends CouponDatabaseTestSupport {
                                                 clock.instant().plusSeconds(300)));
                                 return true;
                             } catch (
-                                    com.msa.coupon.domain.coupon.exception.CouponException
+                                    CouponException
                                             conflict) {
                                 return false;
                             }
@@ -480,7 +512,7 @@ class CouponConcurrencyIntegrationTest extends CouponDatabaseTestSupport {
                                                 account,
                                                 20000,
                                                 clock.instant().plusSeconds(300))))
-                .isInstanceOf(com.msa.coupon.domain.coupon.exception.CouponException.class);
+                .isInstanceOf(CouponException.class);
         assertThat(
                         queries.applicable(account, UUID.randomUUID(), 150)
                                 .getFirst()

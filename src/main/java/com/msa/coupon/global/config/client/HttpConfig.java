@@ -1,18 +1,23 @@
 package com.msa.coupon.global.config.client;
 
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.cloud.client.loadbalancer.*;
-import org.springframework.context.annotation.*;
-import org.springframework.core.env.*;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.cloud.client.loadbalancer.BlockingLoadBalancerInterceptor;
+import org.springframework.cloud.client.loadbalancer.DeferringLoadBalancerInterceptor;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
+import org.springframework.core.env.Environment;
+import org.springframework.core.env.Profiles;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
 
 import java.net.http.HttpClient;
 import java.time.Duration;
 
-/** ?? HTTP? ??? ?????? ???? ?? ??? ?????. */
+/** 내부 HTTP는 Eureka 로드밸런서를 거치며 연결과 응답 대기 시간을 짧게 제한합니다. */
 @Configuration
-@org.springframework.boot.context.properties.EnableConfigurationProperties(ClientProperties.class)
+@EnableConfigurationProperties(ClientProperties.class)
 public class HttpConfig {
     /**
      * 내부 서비스 호출 전용입니다. Spring Cloud LoadBalancer 인터셉터가 서비스 ID를 Eureka 인스턴스로 바꾸고 상태 확인과 연결 실패 재시도를

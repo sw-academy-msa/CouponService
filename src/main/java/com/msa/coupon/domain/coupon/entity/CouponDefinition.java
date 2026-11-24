@@ -1,6 +1,10 @@
 package com.msa.coupon.domain.coupon.entity;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 
 import lombok.Builder;
 
@@ -11,6 +15,12 @@ import java.util.UUID;
 @Entity
 @Table(name = "coupon_definitions", schema = "coupon")
 public class CouponDefinition {
+    /** 발급된 정의는 바꾸지 않고 RETIRED 뒤 새 정의를 만듭니다. */
+    public enum Status {
+        ACTIVE,
+        RETIRED
+    }
+
     @Id public UUID id;
     public String name;
     public String discountType;
@@ -23,7 +33,10 @@ public class CouponDefinition {
     public Instant validFrom;
     public Instant validUntil;
     public Integer validMinutes;
-    public String status;
+
+    @Enumerated(EnumType.STRING)
+    public Status status;
+
     public long version;
     public UUID createdBy;
     public Instant createdAt;
@@ -46,7 +59,7 @@ public class CouponDefinition {
             Instant validFrom,
             Instant validUntil,
             Integer validMinutes,
-            String status,
+            Status status,
             long version,
             UUID createdBy,
             Instant createdAt,

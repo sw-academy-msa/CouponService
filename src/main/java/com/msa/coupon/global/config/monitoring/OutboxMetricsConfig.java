@@ -5,6 +5,7 @@ import com.msa.coupon.domain.outbox.repository.OutboxEventRepository;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
 
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.annotation.EnableScheduling;
@@ -46,7 +47,7 @@ public class OutboxMetricsConfig {
             available.set(1);
         } catch (RuntimeException failure) {
             available.set(0);
-            org.slf4j.LoggerFactory.getLogger(OutboxMetricsConfig.class)
+            LoggerFactory.getLogger(OutboxMetricsConfig.class)
                     .warn(
                             "outbox metrics unavailable cause={}",
                             failure.getClass().getSimpleName());

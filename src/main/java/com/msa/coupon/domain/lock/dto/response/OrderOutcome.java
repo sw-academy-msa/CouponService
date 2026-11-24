@@ -13,7 +13,7 @@ public record OrderOutcome(
         return "OrderOutcome[REDACTED]";
     }
 
-    /** ??? ??? ???? ?? ???? ???? ????. */
+    /** 빌더 문자열에 담긴 값을 로그에 노출하지 않습니다. */
     public static class OrderOutcomeBuilder {
         @Override
         public String toString() {

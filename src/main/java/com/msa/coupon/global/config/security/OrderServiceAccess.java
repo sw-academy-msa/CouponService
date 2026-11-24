@@ -4,7 +4,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Component;
 
-import java.util.*;
+import java.util.Arrays;
 
 /** 서비스 주체와 scope를 사용자 권한과 분리해 확인합니다. */
 @Component("orderServiceAccess")

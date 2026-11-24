@@ -1,6 +1,10 @@
 package com.msa.coupon.domain.coupon.entity;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 
 import lombok.Builder;
 
@@ -11,6 +15,15 @@ import java.util.UUID;
 @Entity
 @Table(name = "coupon_issues", schema = "coupon")
 public class CouponIssue {
+    /** LOCKED 동안에는 유효기간이 지나도 만료하지 않고 USED, EXPIRED, REVOKED는 끝 상태입니다. */
+    public enum Status {
+        ISSUED,
+        LOCKED,
+        USED,
+        EXPIRED,
+        REVOKED
+    }
+
     @Id public UUID id;
     public UUID campaignId;
     public UUID definitionId;
@@ -25,7 +38,10 @@ public class CouponIssue {
     public Long maxDiscount;
     public long minItemsAmount;
     public String scope;
-    public String status;
+
+    @Enumerated(EnumType.STRING)
+    public Status status;
+
     public Instant validFrom;
     public Instant validUntil;
     public String source;
@@ -56,7 +72,7 @@ public class CouponIssue {
             Long maxDiscount,
             long minItemsAmount,
             String scope,
-            String status,
+            Status status,
             Instant validFrom,
             Instant validUntil,
             String source,

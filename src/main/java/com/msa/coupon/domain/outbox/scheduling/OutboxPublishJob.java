@@ -6,7 +6,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
-/** Kafka 전송은 결제 결과 저장 이후 별도 내부 작업입니다. 발행 응답 원문을 로그에 남기지 않습니다. */
+/** Kafka 전송은 업무 트랜잭션 커밋 뒤의 별도 작업입니다. 발행 응답 원문을 로그에 남기지 않습니다. */
 @Component
 @ConditionalOnProperty(name = "coupon.outbox.publisher-enabled", havingValue = "true")
 public class OutboxPublishJob {

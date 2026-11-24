@@ -6,7 +6,8 @@ import jakarta.servlet.DispatcherType;
 
 import org.junit.jupiter.api.Test;
 import org.slf4j.MDC;
-import org.springframework.mock.web.*;
+import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.mock.web.MockHttpServletResponse;
 
 /** 별도·중첩 ERROR 디스패치와 MDC 정리를 실제 필터 진입점에서 검증합니다. */
 class RequestTraceFilterTest {

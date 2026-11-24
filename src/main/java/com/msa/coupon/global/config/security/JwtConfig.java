@@ -3,9 +3,18 @@ package com.msa.coupon.global.config.security;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.security.oauth2.core.*;
+import org.springframework.core.env.Environment;
+import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
+import org.springframework.security.oauth2.core.OAuth2Error;
+import org.springframework.security.oauth2.core.OAuth2TokenValidator;
+import org.springframework.security.oauth2.core.OAuth2TokenValidatorResult;
 import org.springframework.security.oauth2.jose.jws.SignatureAlgorithm;
-import org.springframework.security.oauth2.jwt.*;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.jwt.JwtClaimValidator;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.JwtIssuerValidator;
+import org.springframework.security.oauth2.jwt.JwtTimestampValidator;
+import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 
 import java.time.Clock;
 import java.time.Duration;
@@ -21,7 +30,7 @@ public class JwtConfig {
     public JwtDecoder jwtDecoder(
             AuthProperties properties,
             Clock clock,
-            org.springframework.core.env.Environment environment) {
+            Environment environment) {
         properties.validate(environment);
         // issuer discovery 없이 시작하며 실제 서명 검증 시 JWKS 공개키만 조회합니다.
         var decoder =

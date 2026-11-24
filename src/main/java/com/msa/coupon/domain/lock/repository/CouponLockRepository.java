@@ -4,11 +4,15 @@ import com.msa.coupon.domain.lock.entity.CouponLock;
 
 import jakarta.persistence.LockModeType;
 
-import org.springframework.data.jpa.repository.*;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.Instant;
-import java.util.*;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 
 /** 원본 행 잠금과 조건부 갱신으로 복제본 간 경합을 제어합니다. */
 public interface CouponLockRepository extends JpaRepository<CouponLock, UUID> {

@@ -2,7 +2,9 @@ package com.msa.coupon.domain.lock.client.impl;
 
 import static org.assertj.core.api.Assertions.*;
 
-import com.msa.coupon.domain.eligibility.client.*;
+import com.msa.coupon.domain.eligibility.client.InternalHttp;
+import com.msa.coupon.domain.eligibility.client.RemoteUnavailable;
+import com.msa.coupon.domain.eligibility.client.ServiceTokenProvider;
 import com.msa.coupon.domain.eligibility.dto.response.InternalReply;
 import com.msa.coupon.global.config.client.ClientProperties;
 import com.sun.net.httpserver.HttpServer;
@@ -11,8 +13,11 @@ import org.junit.jupiter.api.Test;
 
 import tools.jackson.databind.json.JsonMapper;
 
-import java.net.*;
-import java.net.http.*;
+import java.net.InetSocketAddress;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;

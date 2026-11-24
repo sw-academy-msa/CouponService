@@ -1,10 +1,15 @@
 package com.msa.coupon.global.config.monitoring;
 
-import com.msa.coupon.domain.campaign.repository.*;
+import com.msa.coupon.domain.campaign.entity.CouponPendingTarget;
+import com.msa.coupon.domain.campaign.repository.CouponCampaignRepository;
+import com.msa.coupon.domain.campaign.repository.CouponPendingTargetRepository;
 import com.msa.coupon.domain.lock.repository.CouponLockRepository;
 
-import io.micrometer.core.instrument.*;
+import io.micrometer.core.instrument.Gauge;
+import io.micrometer.core.instrument.MeterRegistry;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -16,6 +21,8 @@ import java.util.concurrent.atomic.AtomicLong;
 @Configuration(proxyBeanMethods = false)
 @ConditionalOnProperty(name = "monitoring.coupon-enabled", havingValue = "true")
 public class CouponMetricsConfig {
+    private static final Logger log = LoggerFactory.getLogger(CouponMetricsConfig.class);
+
     private final CouponCampaignRepository campaigns;
     private final CouponPendingTargetRepository pending;
     private final CouponLockRepository locks;
@@ -48,10 +55,10 @@ public class CouponMetricsConfig {
     public void sample() {
         try {
             budgetWarning.set(campaigns.countBudgetWarning());
-            pendingFailed.set(pending.countByStatus("FAILED"));
+            pendingFailed.set(pending.countByStatus(CouponPendingTarget.Status.FAILED));
             overdue.set(locks.countOverdue(clock.instant().minusSeconds(86400)));
         } catch (RuntimeException unavailable) {
-            org.slf4j.LoggerFactory.getLogger(getClass()).warn("coupon metrics unavailable");
+            log.warn("coupon metrics unavailable");
         }
     }
 }

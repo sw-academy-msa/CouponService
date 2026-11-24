@@ -3,6 +3,8 @@ package com.msa.coupon.domain.outbox.service.impl;
 import com.msa.coupon.domain.outbox.repository.OutboxEventRepository;
 import com.msa.coupon.domain.outbox.service.OutboxPublisher;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
@@ -16,6 +18,8 @@ import java.util.concurrent.TimeUnit;
 @Service
 @ConditionalOnProperty(name = "coupon.outbox.publisher-enabled", havingValue = "true")
 public class OutboxPublisherImpl implements OutboxPublisher {
+    private static final Logger log = LoggerFactory.getLogger(OutboxPublisherImpl.class);
+
     private final OutboxEventRepository events;
     private final KafkaTemplate<String, byte[]> kafka;
     private final Clock clock;
@@ -46,8 +50,7 @@ public class OutboxPublisherImpl implements OutboxPublisher {
             if (event.attempts >= 20) {
                 event.failedAt = clock.instant();
                 event.lastFailureCode = "PUBLISH_FAILED";
-                org.slf4j.LoggerFactory.getLogger(getClass())
-                        .error("coupon outbox exhausted eventId={}", event.id);
+                log.error("coupon outbox exhausted eventId={}", event.id);
             }
             event.nextAttemptAt = clock.instant().plusSeconds(delay);
             return true;

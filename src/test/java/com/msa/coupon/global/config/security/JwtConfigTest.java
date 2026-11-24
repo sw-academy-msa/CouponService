@@ -9,11 +9,19 @@ import com.nimbusds.jose.jwk.source.ImmutableJWKSet;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.springframework.mock.env.MockEnvironment;
 import org.springframework.security.oauth2.jose.jws.SignatureAlgorithm;
-import org.springframework.security.oauth2.jwt.*;
+import org.springframework.security.oauth2.jwt.JwsHeader;
+import org.springframework.security.oauth2.jwt.JwtClaimsSet;
+import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
+import org.springframework.security.oauth2.jwt.JwtException;
+import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
+import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 
-import java.time.*;
-import java.util.*;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.util.List;
 
 /** 테스트 전용 메모리 키로 실제 서명과 claim 계약을 검증하며 Account 키 파일을 읽지 않습니다. */
 class JwtConfigTest {
@@ -92,7 +100,7 @@ class JwtConfigTest {
                                 .jwtDecoder(
                                         PROPERTIES,
                                         Clock.systemUTC(),
-                                        new org.springframework.mock.env.MockEnvironment()
+                                        new MockEnvironment()
                                                 .withProperty("spring.profiles.active", "test")))
                 .isNotNull();
     }
@@ -114,7 +122,7 @@ class JwtConfigTest {
     @Test
     void configuredDecoderValidatesClaimsAfterVerifyingRealSignature() {
         try (var issuer = new JwtTestIssuer()) {
-            var environment = new org.springframework.mock.env.MockEnvironment();
+            var environment = new MockEnvironment();
             environment.setActiveProfiles("test");
             var properties =
                     new AuthProperties(PROPERTIES.issuer(), PROPERTIES.audience(), issuer.uri());
@@ -138,12 +146,12 @@ class JwtConfigTest {
     @Test
     void startupRequiresHttpsOutsideLocalAndTest() {
         for (String profile : List.of("local", "test")) {
-            var env = new org.springframework.mock.env.MockEnvironment();
+            var env = new MockEnvironment();
             env.setActiveProfiles(profile);
             assertThat(new JwtConfig().jwtDecoder(PROPERTIES, Clock.systemUTC(), env)).isNotNull();
         }
         for (String profile : List.of("prod", "staging", "default")) {
-            var env = new org.springframework.mock.env.MockEnvironment();
+            var env = new MockEnvironment();
             env.setActiveProfiles(profile);
             assertThatThrownBy(() -> new JwtConfig().jwtDecoder(PROPERTIES, Clock.systemUTC(), env))
                     .isInstanceOf(IllegalStateException.class);

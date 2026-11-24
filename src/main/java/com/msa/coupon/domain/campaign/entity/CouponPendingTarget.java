@@ -1,6 +1,11 @@
 package com.msa.coupon.domain.campaign.entity;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 
 import lombok.Builder;
 
@@ -11,6 +16,13 @@ import java.util.UUID;
 @Entity
 @Table(name = "coupon_pending_targets", schema = "coupon")
 public class CouponPendingTarget {
+    /** 동의 확인 HTTP가 30분 안에 끝나지 않으면 FAILED로 남깁니다. */
+    public enum Status {
+        PENDING,
+        DONE,
+        FAILED
+    }
+
     @Id public UUID eventId;
 
     @Column(columnDefinition = "text")
@@ -20,7 +32,10 @@ public class CouponPendingTarget {
     public Instant nextAttemptAt;
     public UUID leaseToken;
     public Instant leaseUntil;
-    public String status;
+
+    @Enumerated(EnumType.STRING)
+    public Status status;
+
     public Instant createdAt;
 
     protected CouponPendingTarget() {}
@@ -33,7 +48,7 @@ public class CouponPendingTarget {
             Instant nextAttemptAt,
             UUID leaseToken,
             Instant leaseUntil,
-            String status,
+            Status status,
             Instant createdAt) {
         this.eventId = eventId;
         this.payload = payload;

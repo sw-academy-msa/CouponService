@@ -9,8 +9,6 @@ import com.msa.coupon.domain.coupon.repository.CouponIssueHistoryRepository;
 import com.msa.coupon.domain.coupon.repository.CouponIssueRepository;
 import com.msa.coupon.domain.outbox.service.CouponNoticeService;
 
-import lombok.RequiredArgsConstructor;
-
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,7 +17,6 @@ import java.util.UUID;
 
 /** 행 잠금을 잡은 짧은 트랜잭션에서 상태와 이력을 함께 바꿉니다. */
 @Service
-@RequiredArgsConstructor
 @Transactional(timeout = 5)
 public class CouponMaintenanceServiceImpl implements CouponMaintenanceService {
     private final CouponIssueRepository issues;
@@ -27,9 +24,20 @@ public class CouponMaintenanceServiceImpl implements CouponMaintenanceService {
     private final CouponNoticeService notices;
     private final Clock clock;
 
+    public CouponMaintenanceServiceImpl(
+            CouponIssueRepository issues,
+            CouponIssueHistoryRepository histories,
+            CouponNoticeService notices,
+            Clock clock) {
+        this.issues = issues;
+        this.histories = histories;
+        this.notices = notices;
+        this.clock = clock;
+    }
+
     public void expire() {
         for (var issue : issues.expired(clock.instant())) {
-            issue.status = "EXPIRED";
+            issue.status = CouponIssue.Status.EXPIRED;
             issue.version++;
             history(issue, "EXPIRED", "SYSTEM");
         }
@@ -56,10 +64,10 @@ public class CouponMaintenanceServiceImpl implements CouponMaintenanceService {
         var issue =
                 issues.lock(id)
                         .orElseThrow(() -> new CouponException(CouponErrorCode.COUPON_NOT_FOUND));
-        if (!"ISSUED".equals(issue.status)) {
+        if (issue.status != CouponIssue.Status.ISSUED) {
             throw new CouponException(CouponErrorCode.COUPON_NOT_AVAILABLE);
         }
-        issue.status = "REVOKED";
+        issue.status = CouponIssue.Status.REVOKED;
         issue.version++;
         history(issue, "REVOKED", "ADMIN");
     }

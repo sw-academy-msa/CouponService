@@ -1,6 +1,6 @@
 package com.msa.coupon.domain.campaign.dto.response;
 
-import jakarta.validation.constraints.*;
+import com.msa.coupon.domain.campaign.entity.CouponCampaign;
 
 import lombok.Builder;
 
@@ -24,20 +24,20 @@ public record CampaignResponse(
         return "CampaignResponse[REDACTED]";
     }
 
-    public static CampaignResponse from(com.msa.coupon.domain.campaign.entity.CouponCampaign e) {
+    public static CampaignResponse from(CouponCampaign e) {
         return new CampaignResponse(
                 e.id,
                 e.code,
-                e.kind,
+                e.kind.name(),
                 e.totalBudget,
                 e.issuedCount,
-                e.status,
+                e.status.name(),
                 e.startsAt,
                 e.endsAt,
                 e.demo);
     }
 
-    /** ??? ??? ???? ?? ???? ???? ????. */
+    /** 빌더 문자열에 담긴 값을 로그에 노출하지 않습니다. */
     public static class CampaignResponseBuilder {
         @Override
         public String toString() {

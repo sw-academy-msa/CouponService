@@ -1,6 +1,7 @@
 package com.msa.coupon.domain.eligibility.client.impl;
 
-import com.msa.coupon.domain.eligibility.client.*;
+import com.msa.coupon.domain.eligibility.client.InternalHttp;
+import com.msa.coupon.domain.eligibility.client.RemoteUnavailable;
 import com.msa.coupon.domain.eligibility.dto.response.InternalReply;
 import com.msa.coupon.global.config.client.ClientProperties;
 
@@ -13,7 +14,7 @@ import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
-/** Eureka ??? ID? ???? ?? ??? ??? ???? ????. */
+/** Eureka 서비스 ID로만 내부 호출을 보내 인스턴스 주소를 설정에 두지 않습니다. */
 @Component
 public class InternalHttpImpl implements InternalHttp {
     private final RestClient rest;

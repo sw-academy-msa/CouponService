@@ -1,11 +1,11 @@
 package com.msa.coupon.domain.lock.consumer;
 
 import com.msa.coupon.domain.lock.dto.request.OrderLifecycle;
+import com.msa.coupon.domain.lock.repository.CouponLockRepository;
 import com.msa.coupon.domain.lock.service.CouponLockWorkStore;
-import com.msa.coupon.domain.receipt.*;
-import com.msa.coupon.domain.receipt.service.*;
-
-import lombok.RequiredArgsConstructor;
+import com.msa.coupon.domain.receipt.InvalidCouponEventException;
+import com.msa.coupon.domain.receipt.service.CouponReceiptService;
+import com.msa.coupon.domain.receipt.service.EventHash;
 
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -15,17 +15,28 @@ import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.ObjectMapper;
 
 import java.nio.charset.StandardCharsets;
-import java.util.*;
+import java.util.Set;
+import java.util.UUID;
 
 /** 이벤트와 receipt를 함께 커밋하여 재전달에도 한 번만 상태를 바꿉니다. */
 @Component
-@RequiredArgsConstructor
 @ConditionalOnProperty(name = "coupon.consumer.enabled", havingValue = "true")
 public class OrderLifecycleConsumer {
     private final ObjectMapper mapper;
     private final CouponReceiptService receipts;
     private final CouponLockWorkStore store;
-    private final com.msa.coupon.domain.lock.repository.CouponLockRepository locks;
+    private final CouponLockRepository locks;
+
+    public OrderLifecycleConsumer(
+            ObjectMapper mapper,
+            CouponReceiptService receipts,
+            CouponLockWorkStore store,
+            CouponLockRepository locks) {
+        this.mapper = mapper;
+        this.receipts = receipts;
+        this.store = store;
+        this.locks = locks;
+    }
 
     @KafkaListener(
             topics = "stockdrop.orders.lifecycle.v1",

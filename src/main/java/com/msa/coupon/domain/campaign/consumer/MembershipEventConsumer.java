@@ -2,14 +2,13 @@ package com.msa.coupon.domain.campaign.consumer;
 
 import com.msa.coupon.domain.campaign.command.service.CampaignIssueStore;
 import com.msa.coupon.domain.campaign.dto.request.MembershipEvent;
+import com.msa.coupon.domain.campaign.entity.CouponCampaign;
 import com.msa.coupon.domain.campaign.repository.CouponCampaignRepository;
 import com.msa.coupon.domain.coupon.repository.CouponIssueRepository;
 import com.msa.coupon.domain.outbox.service.CouponNoticeService;
 import com.msa.coupon.domain.receipt.InvalidCouponEventException;
 import com.msa.coupon.domain.receipt.service.CouponReceiptService;
 import com.msa.coupon.domain.receipt.service.EventHash;
-
-import lombok.RequiredArgsConstructor;
 
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -24,7 +23,6 @@ import java.util.Set;
 
 /** 회원 혜택 발급과 알림 및 receipt를 같은 트랜잭션으로 확정합니다. */
 @Component
-@RequiredArgsConstructor
 @ConditionalOnProperty(name = "coupon.consumer.enabled", havingValue = "true")
 public class MembershipEventConsumer {
     private final ObjectMapper mapper;
@@ -34,6 +32,23 @@ public class MembershipEventConsumer {
     private final CouponIssueRepository issues;
     private final CouponNoticeService notices;
     private final Clock clock;
+
+    public MembershipEventConsumer(
+            ObjectMapper mapper,
+            CouponReceiptService receipts,
+            CouponCampaignRepository campaigns,
+            CampaignIssueStore store,
+            CouponIssueRepository issues,
+            CouponNoticeService notices,
+            Clock clock) {
+        this.mapper = mapper;
+        this.receipts = receipts;
+        this.campaigns = campaigns;
+        this.store = store;
+        this.issues = issues;
+        this.notices = notices;
+        this.clock = clock;
+    }
 
     @KafkaListener(
             topics = "stockdrop.membership.events.private.v1",
@@ -77,7 +92,8 @@ public class MembershipEventConsumer {
                 event.subscriptionId() + ":" + event.generation() + ":" + event.cycleNumber();
         if (issues.findBySourceAndSourceRef("MEMBER", reference).isPresent()) return;
         var active =
-                campaigns.findByKindAndStatusOrderByCreatedAtAsc("MEMBER", "ACTIVE").stream()
+                campaigns.findByKindAndStatusOrderByCreatedAtAsc(
+                                CouponCampaign.Kind.MEMBER, CouponCampaign.Status.ACTIVE).stream()
                         .filter(
                                 c ->
                                         !clock.instant().isBefore(c.startsAt)

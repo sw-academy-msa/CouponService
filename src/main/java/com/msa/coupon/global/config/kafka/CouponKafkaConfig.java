@@ -2,13 +2,24 @@ package com.msa.coupon.global.config.kafka;
 
 import com.msa.coupon.domain.receipt.InvalidCouponEventException;
 
+import io.micrometer.core.instrument.MeterRegistry;
+
 import org.apache.kafka.common.TopicPartition;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.context.annotation.*;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.annotation.EnableKafka;
 import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
-import org.springframework.kafka.core.*;
-import org.springframework.kafka.listener.*;
+import org.springframework.kafka.config.KafkaListenerEndpointRegistry;
+import org.springframework.kafka.core.ConsumerFactory;
+import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.kafka.listener.ContainerProperties;
+import org.springframework.kafka.listener.DeadLetterPublishingRecoverer;
+import org.springframework.kafka.listener.DefaultErrorHandler;
+import org.springframework.kafka.listener.MessageListenerContainer;
 import org.springframework.util.backoff.FixedBackOff;
 
 import java.time.Duration;
@@ -20,11 +31,9 @@ import java.time.Duration;
 public class CouponKafkaConfig {
     @Bean
     public DefaultErrorHandler couponErrorHandler(
-            io.micrometer.core.instrument.MeterRegistry meters,
+            MeterRegistry meters,
             KafkaTemplate<String, byte[]> kafka,
-            org.springframework.beans.factory.ObjectProvider<
-                            org.springframework.kafka.config.KafkaListenerEndpointRegistry>
-                    registry) {
+            ObjectProvider<KafkaListenerEndpointRegistry> registry) {
         var r =
                 new DeadLetterPublishingRecoverer(
                         kafka,
@@ -45,7 +54,7 @@ public class CouponKafkaConfig {
                                     listeners
                                             .getListenerContainers()
                                             .forEach(MessageListenerContainer::pause);
-                                org.slf4j.LoggerFactory.getLogger(CouponKafkaConfig.class)
+                                LoggerFactory.getLogger(CouponKafkaConfig.class)
                                         .error(
                                                 "coupon dlt publish failed partition={}",
                                                 record.partition());
@@ -62,9 +71,7 @@ public class CouponKafkaConfig {
             couponKafkaListenerContainerFactory(
                     ConsumerFactory<String, byte[]> consumerFactory,
                     DefaultErrorHandler couponErrorHandler,
-                    @org.springframework.beans.factory.annotation.Value(
-                                    "${spring.kafka.listener.auto-startup:false}")
-                            boolean autoStartup) {
+                    @Value("${spring.kafka.listener.auto-startup:false}") boolean autoStartup) {
         var f = new ConcurrentKafkaListenerContainerFactory<String, byte[]>();
         f.setConsumerFactory(consumerFactory);
         f.setConcurrency(1);

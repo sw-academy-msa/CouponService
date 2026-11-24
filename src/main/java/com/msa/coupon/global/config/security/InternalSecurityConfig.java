@@ -1,17 +1,29 @@
 package com.msa.coupon.global.config.security;
 
+import com.msa.coupon.global.error.CommonErrorCode;
+
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.*;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.oauth2.core.*;
+import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
+import org.springframework.security.oauth2.core.OAuth2Error;
+import org.springframework.security.oauth2.core.OAuth2TokenValidator;
+import org.springframework.security.oauth2.core.OAuth2TokenValidatorResult;
 import org.springframework.security.oauth2.jose.jws.SignatureAlgorithm;
-import org.springframework.security.oauth2.jwt.*;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.jwt.JwtIssuerValidator;
+import org.springframework.security.oauth2.jwt.JwtTimestampValidator;
+import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.web.SecurityFilterChain;
 
-import java.time.*;
-import java.util.*;
+import tools.jackson.databind.ObjectMapper;
+
+import java.time.Clock;
+import java.time.Duration;
+import java.util.Arrays;
 
 /** 주문 서비스 토큰만 내부 잠금 경로에 허용합니다. */
 @Configuration
@@ -22,7 +34,7 @@ public class InternalSecurityConfig {
             HttpSecurity http,
             AuthProperties auth,
             Clock clock,
-            tools.jackson.databind.ObjectMapper mapper,
+            ObjectMapper mapper,
             @Value("${ORDER_SERVICE_SUBJECT:}") String subject)
             throws Exception {
         var decoder =
@@ -68,16 +80,13 @@ public class InternalSecurityConfig {
                                                 (request, response, failure) ->
                                                         SecurityConfig.error(
                                                                 response,
-                                                                com.msa.coupon.global.error
-                                                                        .CommonErrorCode
-                                                                        .UNAUTHORIZED,
+                                                                CommonErrorCode.UNAUTHORIZED,
                                                                 mapper))
                                         .accessDeniedHandler(
                                                 (request, response, failure) ->
                                                         SecurityConfig.error(
                                                                 response,
-                                                                com.msa.coupon.global.error
-                                                                        .CommonErrorCode.FORBIDDEN,
+                                                                CommonErrorCode.FORBIDDEN,
                                                                 mapper)))
                 .oauth2ResourceServer(
                         o ->
@@ -86,9 +95,7 @@ public class InternalSecurityConfig {
                                                 (request, response, failure) ->
                                                         SecurityConfig.error(
                                                                 response,
-                                                                com.msa.coupon.global.error
-                                                                        .CommonErrorCode
-                                                                        .UNAUTHORIZED,
+                                                                CommonErrorCode.UNAUTHORIZED,
                                                                 mapper)))
                 .build();
     }

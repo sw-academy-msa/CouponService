@@ -1,17 +1,22 @@
 package com.msa.coupon.global.config.security;
 
-import com.msa.coupon.global.error.*;
+import com.msa.coupon.global.error.CommonErrorCode;
+import com.msa.coupon.global.error.ErrorCode;
+import com.msa.coupon.global.error.ErrorResponse;
 
 import jakarta.servlet.http.HttpServletResponse;
 
 import org.slf4j.MDC;
-import org.springframework.context.annotation.*;
-import org.springframework.core.env.*;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.core.env.Environment;
+import org.springframework.core.env.Profiles;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.oauth2.server.resource.authentication.*;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
+import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.security.web.SecurityFilterChain;
 
 import tools.jackson.databind.ObjectMapper;

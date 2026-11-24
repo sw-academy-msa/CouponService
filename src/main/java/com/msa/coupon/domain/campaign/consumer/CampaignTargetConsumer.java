@@ -2,9 +2,9 @@ package com.msa.coupon.domain.campaign.consumer;
 
 import com.msa.coupon.domain.campaign.command.service.PendingTargetStore;
 import com.msa.coupon.domain.campaign.dto.request.CampaignTarget;
+import com.msa.coupon.domain.eligibility.client.AccountEligibilityClient;
+import com.msa.coupon.domain.eligibility.client.RemoteUnavailable;
 import com.msa.coupon.domain.receipt.InvalidCouponEventException;
-
-import lombok.RequiredArgsConstructor;
 
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -17,12 +17,18 @@ import java.util.Set;
 
 /** 외부 동의 장애가 Kafka를 막지 않도록 내구성 큐에 먼저 기록합니다. */
 @Component
-@RequiredArgsConstructor
 @ConditionalOnProperty(name = "coupon.consumer.enabled", havingValue = "true")
 public class CampaignTargetConsumer {
     private final ObjectMapper mapper;
     private final PendingTargetStore store;
-    private final com.msa.coupon.domain.eligibility.client.AccountEligibilityClient eligibility;
+    private final AccountEligibilityClient eligibility;
+
+    public CampaignTargetConsumer(
+            ObjectMapper mapper, PendingTargetStore store, AccountEligibilityClient eligibility) {
+        this.mapper = mapper;
+        this.store = store;
+        this.eligibility = eligibility;
+    }
 
     @KafkaListener(
             topics = "stockdrop.ai.campaign-targets.v1",
@@ -59,7 +65,7 @@ public class CampaignTargetConsumer {
                             try {
                                 allowed = eligibility.eligible(work.target().accountId());
                             } catch (
-                                    com.msa.coupon.domain.eligibility.client.RemoteUnavailable
+                                    RemoteUnavailable
                                             unavailable) {
                                 // 같은 이벤트를 내구성 큐에서 다시 확인합니다.
                             }

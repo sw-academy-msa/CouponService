@@ -1,16 +1,33 @@
 package com.msa.coupon.domain.eligibility.client.impl;
 
-import com.msa.coupon.domain.eligibility.client.*;
+import com.msa.coupon.domain.eligibility.client.InternalHttp;
+import com.msa.coupon.domain.eligibility.client.RemoteUnavailable;
+import com.msa.coupon.domain.eligibility.client.ServiceTokenProvider;
 import com.msa.coupon.global.config.client.ClientProperties;
+import com.msa.coupon.global.config.security.AuthProperties;
 
+import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
+import org.springframework.security.oauth2.jose.jws.SignatureAlgorithm;
+import org.springframework.security.oauth2.jwt.JwtClaimValidator;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.JwtIssuerValidator;
+import org.springframework.security.oauth2.jwt.JwtTimestampValidator;
+import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.stereotype.Component;
 
 import tools.jackson.databind.ObjectMapper;
 
 import java.nio.charset.StandardCharsets;
-import java.time.*;
-import java.util.*;
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.Arrays;
+import java.util.Base64;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 /** 기존 Order와 같은 Account 발급 계약을 재사용합니다. 네트워크 실패 시 유효한 캐시만 유지합니다. */
 @Component
@@ -30,31 +47,24 @@ public class ServiceTokenProviderImpl implements ServiceTokenProvider {
             InternalHttp http,
             ClientProperties properties,
             ObjectMapper mapper,
-            com.msa.coupon.global.config.security.AuthProperties auth,
+            AuthProperties auth,
             Clock clock) {
         this.http = http;
         this.properties = properties;
         this.mapper = mapper;
         var serviceDecoder =
-                org.springframework.security.oauth2.jwt.NimbusJwtDecoder.withJwkSetUri(
-                                auth.jwkSetUri())
-                        .jwsAlgorithm(
-                                org.springframework.security.oauth2.jose.jws.SignatureAlgorithm
-                                        .RS256)
+                NimbusJwtDecoder.withJwkSetUri(auth.jwkSetUri())
+                        .jwsAlgorithm(SignatureAlgorithm.RS256)
                         .build();
-        var timestamp =
-                new org.springframework.security.oauth2.jwt.JwtTimestampValidator(
-                        java.time.Duration.ofSeconds(30));
+        var timestamp = new JwtTimestampValidator(Duration.ofSeconds(30));
         timestamp.setClock(clock);
         serviceDecoder.setJwtValidator(
-                new org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator<>(
+                new DelegatingOAuth2TokenValidator<>(
                         timestamp,
-                        new org.springframework.security.oauth2.jwt.JwtIssuerValidator(
-                                auth.issuer()),
-                        new org.springframework.security.oauth2.jwt.JwtClaimValidator<
-                                java.util.List<String>>(
+                        new JwtIssuerValidator(auth.issuer()),
+                        new JwtClaimValidator<List<String>>(
                                 "aud", v -> v != null && v.contains(auth.audience())),
-                        new org.springframework.security.oauth2.jwt.JwtClaimValidator<String>(
+                        new JwtClaimValidator<String>(
                                 "token_use", "access"::equals)));
         this.decoder = serviceDecoder;
         this.clock = clock;
@@ -105,7 +115,7 @@ public class ServiceTokenProviderImpl implements ServiceTokenProvider {
                     || !jwt.getExpiresAt()
                             .equals(
                                     Instant.parse(data.path("expires_at").asText())
-                                            .truncatedTo(java.time.temporal.ChronoUnit.SECONDS))
+                                            .truncatedTo(ChronoUnit.SECONDS))
                     || data.path("expires_in").asLong() <= 0
                     || data.path("expires_in").asLong() > 900
                     || !new HashSet<>(Arrays.asList(data.path("scope").asText().split(" +")))

@@ -1,6 +1,6 @@
 package com.msa.coupon.domain.coupon.dto.response;
 
-import jakarta.validation.constraints.*;
+import com.msa.coupon.domain.coupon.entity.CouponDefinition;
 
 import lombok.Builder;
 
@@ -24,7 +24,7 @@ public record DefinitionResponse(
         return "DefinitionResponse[REDACTED]";
     }
 
-    public static DefinitionResponse from(com.msa.coupon.domain.coupon.entity.CouponDefinition e) {
+    public static DefinitionResponse from(CouponDefinition e) {
         return new DefinitionResponse(
                 e.id,
                 e.name,
@@ -34,11 +34,11 @@ public record DefinitionResponse(
                 e.maxDiscount,
                 e.minItemsAmount,
                 e.scope,
-                e.status,
+                e.status.name(),
                 e.version);
     }
 
-    /** ??? ??? ???? ?? ???? ???? ????. */
+    /** 빌더 문자열에 담긴 값을 로그에 노출하지 않습니다. */
     public static class DefinitionResponseBuilder {
         @Override
         public String toString() {

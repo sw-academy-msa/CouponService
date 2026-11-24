@@ -1,6 +1,7 @@
 package com.msa.coupon.domain.lock.dto.response;
 
-import jakarta.validation.constraints.*;
+import com.msa.coupon.domain.coupon.entity.CouponIssue;
+import com.msa.coupon.domain.lock.entity.CouponLock;
 
 import lombok.Builder;
 
@@ -24,8 +25,8 @@ public record LockResponse(
     }
 
     public static LockResponse from(
-            com.msa.coupon.domain.lock.entity.CouponLock l,
-            com.msa.coupon.domain.coupon.entity.CouponIssue i) {
+            CouponLock l,
+            CouponIssue i) {
         return new LockResponse(
                 l.orderId,
                 i.id,
@@ -35,10 +36,10 @@ public record LockResponse(
                 i.maxDiscount,
                 i.minItemsAmount,
                 i.definitionVersion,
-                l.state);
+                l.state.name());
     }
 
-    /** ??? ??? ???? ?? ???? ???? ????. */
+    /** 빌더 문자열에 담긴 값을 로그에 노출하지 않습니다. */
     public static class LockResponseBuilder {
         @Override
         public String toString() {

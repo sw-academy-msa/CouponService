@@ -1,6 +1,10 @@
 package com.msa.coupon.domain.campaign.entity;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 
 import lombok.Builder;
 
@@ -11,17 +15,38 @@ import java.util.UUID;
 @Entity
 @Table(name = "coupon_campaigns", schema = "coupon")
 public class CouponCampaign {
+    /** ACTIVE이고 기간 안일 때만 발급합니다. */
+    public enum Status {
+        DRAFT,
+        ACTIVE,
+        PAUSED,
+        ENDED
+    }
+
+    /** CLAIM은 사용자 받기, TARGETED는 AI 대상, MEMBER는 회원 구독 이벤트 발급입니다. */
+    public enum Kind {
+        CLAIM,
+        TARGETED,
+        MEMBER
+    }
+
     @Id public UUID id;
     public String code;
     public UUID definitionId;
-    public String kind;
+
+    @Enumerated(EnumType.STRING)
+    public Kind kind;
+
     public String ruleCode;
     public int totalBudget;
     public int issuedCount;
     public int perAccountLimit;
     public Instant startsAt;
     public Instant endsAt;
-    public String status;
+
+    @Enumerated(EnumType.STRING)
+    public Status status;
+
     public boolean demo;
     public long rowVersion;
     public Instant createdAt;
@@ -34,14 +59,14 @@ public class CouponCampaign {
             UUID id,
             String code,
             UUID definitionId,
-            String kind,
+            Kind kind,
             String ruleCode,
             int totalBudget,
             int issuedCount,
             int perAccountLimit,
             Instant startsAt,
             Instant endsAt,
-            String status,
+            Status status,
             boolean demo,
             long rowVersion,
             Instant createdAt,

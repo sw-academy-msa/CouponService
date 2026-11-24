@@ -1,24 +1,36 @@
 package com.msa.coupon.domain.eligibility.client.impl;
 
-import com.msa.coupon.domain.eligibility.client.*;
+import com.msa.coupon.domain.eligibility.client.AccountEligibilityClient;
+import com.msa.coupon.domain.eligibility.client.InternalHttp;
+import com.msa.coupon.domain.eligibility.client.RemoteUnavailable;
+import com.msa.coupon.domain.eligibility.client.ServiceTokenProvider;
 import com.msa.coupon.global.config.client.ClientProperties;
-
-import lombok.RequiredArgsConstructor;
 
 import org.springframework.stereotype.Component;
 
 import tools.jackson.databind.ObjectMapper;
 
-import java.util.*;
+import java.util.Map;
+import java.util.UUID;
 
 /** 외부 오류는 거절과 구분하여 재시도 대상으로 남깁니다. */
 @Component
-@RequiredArgsConstructor
 public class AccountEligibilityClientImpl implements AccountEligibilityClient {
     private final InternalHttp http;
     private final ClientProperties properties;
     private final ServiceTokenProvider tokens;
     private final ObjectMapper mapper;
+
+    public AccountEligibilityClientImpl(
+            InternalHttp http,
+            ClientProperties properties,
+            ServiceTokenProvider tokens,
+            ObjectMapper mapper) {
+        this.http = http;
+        this.properties = properties;
+        this.tokens = tokens;
+        this.mapper = mapper;
+    }
 
     public boolean eligible(UUID account) {
         try {

@@ -5,21 +5,27 @@ import static org.mockito.Mockito.*;
 
 import com.msa.coupon.domain.campaign.repository.CouponCampaignRepository;
 import com.msa.coupon.domain.coupon.entity.CouponIssue;
-import com.msa.coupon.domain.coupon.repository.*;
+import com.msa.coupon.domain.coupon.repository.CouponDefinitionRepository;
+import com.msa.coupon.domain.coupon.repository.CouponIssueRepository;
+import com.msa.coupon.domain.lock.dto.request.LockRequest;
 
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
-import java.time.*;
-import java.util.*;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.util.List;
+import java.util.UUID;
 
 /** 예상 할인은 내림과 상한 및 최소 상품 결제액을 지키며 오버플로를 피합니다. */
 class CouponQueryServiceImplTest {
-    @org.junit.jupiter.api.Test
+    @Test
     void sensitiveDtoBuilderDoesNotExposeAccount() {
         UUID account = UUID.randomUUID();
         assertThat(
-                        com.msa.coupon.domain.lock.dto.request.LockRequest.builder()
+                        LockRequest.builder()
                                 .accountId(account)
                                 .toString())
                 .isEqualTo("LockRequestBuilder[REDACTED]")
@@ -47,7 +53,7 @@ class CouponQueryServiceImplTest {
                         .rateBps(rate)
                         .maxDiscount(3000L)
                         .scope("ALL")
-                        .status("ISSUED")
+                        .status(CouponIssue.Status.ISSUED)
                         .build();
         when(repository.applicable(account, product, items, now)).thenReturn(List.of(issue));
         var query =

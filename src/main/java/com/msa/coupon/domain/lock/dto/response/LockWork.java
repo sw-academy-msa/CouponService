@@ -13,7 +13,7 @@ public record LockWork(UUID orderId, UUID token, Instant lockedAt) {
         return "LockWork[REDACTED]";
     }
 
-    /** ??? ??? ???? ?? ???? ???? ????. */
+    /** 빌더 문자열에 담긴 값을 로그에 노출하지 않습니다. */
     public static class LockWorkBuilder {
         @Override
         public String toString() {

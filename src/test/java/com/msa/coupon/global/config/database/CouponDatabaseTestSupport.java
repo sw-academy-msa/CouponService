@@ -7,7 +7,10 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 
-import java.time.*;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
 
 /** 실제 PostgreSQL과 주입 시각으로 유니크 및 임대를 검증합니다. */
 public abstract class CouponDatabaseTestSupport {

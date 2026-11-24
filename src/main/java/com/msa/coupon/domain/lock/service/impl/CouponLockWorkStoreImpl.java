@@ -1,36 +1,58 @@
 package com.msa.coupon.domain.lock.service.impl;
 
-import com.msa.coupon.domain.coupon.entity.*;
-import com.msa.coupon.domain.coupon.exception.*;
-import com.msa.coupon.domain.coupon.repository.*;
-import com.msa.coupon.domain.lock.dto.request.*;
-import com.msa.coupon.domain.lock.dto.response.*;
-import com.msa.coupon.domain.lock.entity.*;
-import com.msa.coupon.domain.lock.exception.*;
-import com.msa.coupon.domain.lock.repository.*;
-import com.msa.coupon.domain.lock.service.*;
+import com.msa.coupon.domain.coupon.entity.CouponIssue;
+import com.msa.coupon.domain.coupon.entity.CouponIssueHistory;
+import com.msa.coupon.domain.coupon.exception.CouponErrorCode;
+import com.msa.coupon.domain.coupon.exception.CouponException;
+import com.msa.coupon.domain.coupon.repository.CouponIssueHistoryRepository;
+import com.msa.coupon.domain.coupon.repository.CouponIssueRepository;
+import com.msa.coupon.domain.lock.dto.request.LockRequest;
+import com.msa.coupon.domain.lock.dto.response.LockResponse;
+import com.msa.coupon.domain.lock.dto.response.LockWork;
+import com.msa.coupon.domain.lock.dto.response.OrderOutcome;
+import com.msa.coupon.domain.lock.entity.CouponLock;
+import com.msa.coupon.domain.lock.exception.LockErrorCode;
+import com.msa.coupon.domain.lock.exception.LockException;
+import com.msa.coupon.domain.lock.repository.CouponLockRepository;
+import com.msa.coupon.domain.lock.service.CouponLockWorkStore;
 import com.msa.coupon.domain.receipt.service.EventHash;
 
-import lombok.RequiredArgsConstructor;
-
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.*;
-import java.util.*;
+import java.time.Clock;
+import java.util.List;
+import java.util.Objects;
+import java.util.Set;
+import java.util.UUID;
 
 /** 잠금 순서를 주문 잠금 다음 발급 원본으로 고정하고 불명 상태를 보존합니다. */
 @Service
-@RequiredArgsConstructor
 @Transactional(timeout = 5)
 public class CouponLockWorkStoreImpl implements CouponLockWorkStore {
+    private static final Logger log = LoggerFactory.getLogger(CouponLockWorkStoreImpl.class);
+
+    private final long recoveryGraceMinutes;
     private final CouponLockRepository locks;
     private final CouponIssueRepository issues;
     private final CouponIssueHistoryRepository histories;
     private final Clock clock;
 
-    @org.springframework.beans.factory.annotation.Value("${coupon.lock-recovery.grace-minutes:10}")
-    private long recoveryGraceMinutes;
+    public CouponLockWorkStoreImpl(
+            @Value("${coupon.lock-recovery.grace-minutes:10}") long recoveryGraceMinutes,
+            CouponLockRepository locks,
+            CouponIssueRepository issues,
+            CouponIssueHistoryRepository histories,
+            Clock clock) {
+        this.recoveryGraceMinutes = recoveryGraceMinutes;
+        this.locks = locks;
+        this.issues = issues;
+        this.histories = histories;
+        this.clock = clock;
+    }
 
     public LockResponse lock(LockRequest r) {
         String hash =
@@ -73,7 +95,7 @@ public class CouponLockWorkStoreImpl implements CouponLockWorkStore {
                 throw new CouponException(CouponErrorCode.COUPON_NOT_OWNED);
             if (!i.validUntil.isAfter(now))
                 throw new CouponException(CouponErrorCode.COUPON_EXPIRED);
-            if (!"ISSUED".equals(i.status) || i.validFrom.isAfter(now))
+            if (i.status != CouponIssue.Status.ISSUED || i.validFrom.isAfter(now))
                 throw new CouponException(CouponErrorCode.COUPON_NOT_AVAILABLE);
             if ("PRODUCT".equals(i.scope) && !r.productId().equals(i.productId))
                 throw new CouponException(CouponErrorCode.COUPON_SCOPE_MISMATCH);
@@ -89,7 +111,7 @@ public class CouponLockWorkStoreImpl implements CouponLockWorkStore {
                                 .productId(r.productId())
                                 .itemsAmount(r.itemsAmount())
                                 .requestHash(hash)
-                                .state("LOCKED")
+                                .state(CouponLock.State.LOCKED)
                                 .holdUntil(r.holdUntil())
                                 .nextCheckAt(
                                         r.holdUntil()
@@ -119,7 +141,7 @@ public class CouponLockWorkStoreImpl implements CouponLockWorkStore {
         if (found.isEmpty()) return;
         var l = found.get();
         var now = clock.instant();
-        if (!"LOCKED".equals(l.state)
+        if (l.state != CouponLock.State.LOCKED
                 || !Objects.equals(l.leaseToken, w.token())
                 || l.leaseUntil == null
                 || !l.leaseUntil.isAfter(now)) return;
@@ -148,8 +170,7 @@ public class CouponLockWorkStoreImpl implements CouponLockWorkStore {
                 now.plusSeconds(
                         o == null ? Math.min(600, 30L << Math.min(4, l.checkAttempts)) : 300);
         if (!now.isBefore(l.lockedAt.plusSeconds(86400)))
-            org.slf4j.LoggerFactory.getLogger(getClass())
-                    .warn("coupon lock overdue orderId={}", l.orderId);
+            log.warn("coupon lock overdue orderId={}", l.orderId);
     }
 
     public void lifecycle(UUID orderId, String phase, boolean applied, long discount) {
@@ -157,44 +178,48 @@ public class CouponLockWorkStoreImpl implements CouponLockWorkStore {
         if (found.isEmpty()) return;
         var l = found.get();
         if ("CONFIRMED".equals(phase)) {
-            if ("RELEASED".equals(l.state) && applied) {
+            if (l.state == CouponLock.State.RELEASED && applied) {
                 var i = issues.lock(l.issueId).orElseThrow();
-                i.status = "USED";
+                i.status = CouponIssue.Status.USED;
                 i.usedOrderId = l.orderId;
                 i.usedAt = clock.instant();
                 i.discountApplied = discount;
                 i.version++;
-                l.state = "USED";
+                l.state = CouponLock.State.USED;
                 l.finishedAt = clock.instant();
                 l.discountApplied = discount;
                 l.finishReason = "MANUAL_REVIEW_LATE_CONFIRM";
                 history(i, "USED", orderId, l.finishReason);
-                org.slf4j.LoggerFactory.getLogger(getClass())
-                        .error("coupon late confirmation orderId={} issueId={}", orderId, i.id);
+                log.error("coupon late confirmation orderId={} issueId={}", orderId, i.id);
                 return;
             }
-            if ("LOCKED".equals(l.state)) finish(l, applied, discount, "CONFIRMED");
-        } else if (Set.of("FAILED", "EXPIRED").contains(phase) && "LOCKED".equals(l.state))
+            if (l.state == CouponLock.State.LOCKED) finish(l, applied, discount, "CONFIRMED");
+        } else if (Set.of("FAILED", "EXPIRED").contains(phase)
+                && l.state == CouponLock.State.LOCKED)
             finish(l, false, 0, phase);
     }
 
     private void finish(CouponLock l, boolean used, long discount, String reason) {
         var i = issues.lock(l.issueId).orElseThrow();
         var now = clock.instant();
-        l.state = used ? "USED" : "RELEASED";
+        l.state = used ? CouponLock.State.USED : CouponLock.State.RELEASED;
         l.finishedAt = now;
         l.finishReason = reason;
         l.discountApplied = used ? discount : 0L;
         l.leaseToken = null;
         l.leaseUntil = null;
         // 지연 확정으로 사용 처리된 원본을 다른 주문의 해제가 되돌리지 않게 합니다.
-        if ("USED".equals(i.status) && !l.orderId.equals(i.usedOrderId)) {
+        if (i.status == CouponIssue.Status.USED && !l.orderId.equals(i.usedOrderId)) {
             l.finishReason = "MANUAL_REVIEW_USED_CONFLICT";
-            org.slf4j.LoggerFactory.getLogger(getClass())
-                    .error("coupon used conflict orderId={} issueId={}", l.orderId, i.id);
+            log.error("coupon used conflict orderId={} issueId={}", l.orderId, i.id);
             return;
         }
-        i.status = used ? "USED" : i.validUntil.isAfter(now) ? "ISSUED" : "EXPIRED";
+        i.status =
+                used
+                        ? CouponIssue.Status.USED
+                        : i.validUntil.isAfter(now)
+                                ? CouponIssue.Status.ISSUED
+                                : CouponIssue.Status.EXPIRED;
         i.version++;
         if (used) {
             i.usedOrderId = l.orderId;

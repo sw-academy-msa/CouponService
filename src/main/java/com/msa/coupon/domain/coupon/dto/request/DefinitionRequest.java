@@ -1,6 +1,10 @@
 package com.msa.coupon.domain.coupon.dto.request;
 
-import jakarta.validation.constraints.*;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.PositiveOrZero;
+import jakarta.validation.constraints.Size;
 
 import lombok.Builder;
 
@@ -26,7 +30,7 @@ public record DefinitionRequest(
         return "DefinitionRequest[REDACTED]";
     }
 
-    /** ??? ??? ???? ?? ???? ???? ????. */
+    /** 빌더 문자열에 담긴 값을 로그에 노출하지 않습니다. */
     public static class DefinitionRequestBuilder {
         @Override
         public String toString() {
