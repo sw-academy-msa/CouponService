@@ -1,15 +1,34 @@
-# STOCKDROP CouponService
+# CouponService
 
-Java 21 / Spring Boot 4.1.1 쿠폰 원본 서비스입니다. 포트 8088, DB와 스키마 coupon을 사용합니다.
+STOCKDROP 쿠폰 원본 서비스입니다. Java 21 / Spring Boot 4.1.1 / Spring Cloud 2025.1.4 / Gradle 9.8.2를 사용하며 PaymentService 구조를 따릅니다.
 
-모든 업무 플래그는 기본 false입니다. DB_PASSWORD와 JWT 설정은 환경변수로 주입합니다. 로컬에서도 Flyway 실행 후 Hibernate validate만 수행합니다. 기존 PaymentService와 동일한 의존성만 사용하며 포매터 플러그인을 추가하지 않았습니다.
+1. 기존 일반 PostgreSQL `stockdrop-account-postgres`(5433)를 실행합니다.
+2. PowerShell에서 `scripts/Initialize-LocalCouponDatabase.ps1`과 `scripts/Test-LocalCouponDatabase.ps1`을 실행합니다. 전용 `coupon` DB, 계정, 스키마를 준비하며 비밀번호는 Git 제외 `.env`에 생성합니다. 업무 테이블은 Flyway가 만듭니다.
+3. Java 21로 `./gradlew.bat bootRun`을 실행합니다. 기본 포트 8088, 서비스 이름은 `coupon-service`입니다.
+4. 상태 확인은 `http://localhost:8088/actuator/health`, 로컬 Swagger는 `/swagger-ui.html`입니다(내부 API 제외).
 
-쿠폰 정의, 캠페인, 선착순 발급, 쿠폰함과 적용 가능 조회, 주문 잠금과 사용 및 해제, 임대 기반 복구, 회원 쿠폰, 대상 발급과 예산 소진 알림, 만료와 만료 임박 알림을 제공합니다. 운영자 API는 ADMIN, 사용자 API는 BUYER, 내부 잠금은 order-command 서비스 주체와 coupon.lock scope를 검증합니다. 캠페인 조회 GET은 비로그인도 가능합니다.
+쿠폰 정의, 캠페인(CLAIM, TARGETED, MEMBER), 선착순과 예산 발급, 쿠폰함과 적용 가능 조회, 주문 잠금과 사용 및 해제, 결과 확인 뒤 잠금 복구, 회원 쿠폰, 대상 발급과 예산 소진 알림, 만료와 만료 임박 알림을 제공합니다. 사용자 API는 BUYER, 운영자 API는 ADMIN, 내부 잠금은 order-command 서비스 주체와 `coupon.lock` scope를 검증합니다. 캠페인 조회 GET만 비로그인으로 열립니다.
 
-활성화 환경변수는 COUPON_API_ENABLED, COUPON_CONSUMER_ENABLED, COUPON_SCHEDULER_ENABLED, COUPON_OUTBOX_PUBLISHER_ENABLED입니다. 잠금 복구는 holdUntil 뒤 기본 10분부터 주문 원본을 확인하며 coupon.lock-recovery.grace-minutes로 조정합니다. 대상 이벤트는 receipt와 내구성 큐에 저장하고 30초 주기로 동의를 확인합니다. 일시 실패는 최대 30분 동안 재시도하며 HTTP 동안 DB 연결을 점유하지 않습니다.
+모든 업무 플래그는 기본 false입니다.
 
-Kafka 입력은 stockdrop.orders.lifecycle.v1, stockdrop.ai.campaign-targets.v1, stockdrop.membership.events.private.v1이며, 각 원본의 .DLT를 미리 만들어야 합니다. 신규 계약 오류는 즉시 DLT, 일시 오류는 1초 간격 3회 후 DLT입니다. 격리 발행이 실패하면 소비를 pause하고 offset을 유지합니다. Outbox는 최대 20회 뒤 failed_at으로 격리합니다. Outbox와 쿠폰 경보 수집은 MONITORING_OUTBOX_ENABLED와 MONITORING_COUPON_ENABLED로 켭니다.
+```dotenv
+COUPON_API_ENABLED=true
+COUPON_CONSUMER_ENABLED=true
+COUPON_SCHEDULER_ENABLED=true
+COUPON_OUTBOX_PUBLISHER_ENABLED=true
+KAFKA_BOOTSTRAP_SERVERS=localhost:19092
+```
 
-검증: JAVA_HOME을 JDK 21로 지정하고 Docker 실행 후 ./gradlew test bootJar를 실행합니다. Swagger는 local 프로필에서 /swagger-ui.html이며 내부 API는 제외합니다.
+- [연동 계약](contracts/coupon-flow.md): 주문 잠금, 주문 결과 조회, Kafka 입력과 알림 출력, Account 의존.
+- [공개 HTTP API 스냅샷](openapi/coupon.openapi.json): 실제 컨트롤러에서 생성하며 API를 바꾸면 같은 PR에서 갱신합니다.
+- OpenAPI 기본 서버는 일반 Gateway인 http://localhost:8000이며 운영 주소는 `coupon.openapi.gateway-base-url`로 주입합니다.
+- 새 토픽과 `.DLT`는 Infra topics.sh로 미리 만듭니다. 자동 생성은 쓰지 않습니다.
+- 시연 허용 목록은 `CAMPAIGN_DEMO_ACCOUNT_IDS`(UUID 최대 10개)이고 비어 있으면 시연 발급을 막습니다.
+- Outbox와 쿠폰 경보 지표는 `MONITORING_OUTBOX_ENABLED`, `MONITORING_COUPON_ENABLED`로 켭니다.
 
-로컬 저장소만 생성했습니다. 원격 push와 운영 배포는 수행하지 않습니다. 상세 상태는 임시 coupon/impl1-report.md를 참고합니다.
+```powershell
+$env:JAVA_HOME = 'C:\Program Files\Eclipse Adoptium\jdk-21.0.9.10-hotspot'
+./gradlew.bat test bootJar
+```
+
+테스트는 격리 PostgreSQL과 Kafka 컨테이너, 테스트 메모리 RSA 키, JDK HttpServer 대역을 씁니다. 대역 테스트 통과가 실제 order-command, Account, Notification 연동 완료를 뜻하지는 않습니다. 로컬 `.env`, 개인정보, 실제 토큰은 커밋하지 않습니다.

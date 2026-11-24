@@ -1,4 +1,4 @@
-package com.msa.coupon.domain.coupon.service.impl;
+package com.msa.coupon.domain.coupon.command.service.impl;
 
 import static org.assertj.core.api.Assertions.*;
 
