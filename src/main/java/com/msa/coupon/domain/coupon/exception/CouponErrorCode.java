@@ -15,7 +15,10 @@ public enum CouponErrorCode implements ErrorCode {
     COUPON_SELF_PRODUCT(HttpStatus.CONFLICT, "COUPON_SELF_PRODUCT", "본인의 상품에는 쿠폰을 사용할 수 없습니다."),
     COUPON_DEFINITION_IN_USE(
             HttpStatus.CONFLICT, "COUPON_DEFINITION_IN_USE", "이미 발급한 정의는 변경할 수 없습니다."),
-    INVALID(HttpStatus.BAD_REQUEST, "COUPON_INVALID", "쿠폰 조건이 올바르지 않습니다.");
+    INVALID(HttpStatus.BAD_REQUEST, "COUPON_INVALID", "쿠폰 조건이 올바르지 않습니다."),
+    // Kafka 계약 오류 전용입니다. HTTP 응답으로 내보내지 않고 DLT 예외 헤더에만 남습니다.
+    INVALID_EVENT(HttpStatus.BAD_REQUEST, "COUPON_EVENT_INVALID", "COUPON_EVENT_INVALID");
+
     private final HttpStatus status;
     private final String code;
     private final String message;
@@ -26,14 +29,17 @@ public enum CouponErrorCode implements ErrorCode {
         this.message = message;
     }
 
+    @Override
     public HttpStatus status() {
         return status;
     }
 
+    @Override
     public String code() {
         return code;
     }
 
+    @Override
     public String message() {
         return message;
     }

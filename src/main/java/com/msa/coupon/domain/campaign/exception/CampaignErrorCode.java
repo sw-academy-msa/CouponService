@@ -10,6 +10,7 @@ public enum CampaignErrorCode implements ErrorCode {
     CAMPAIGN_NOT_ACTIVE(HttpStatus.CONFLICT, "CAMPAIGN_NOT_ACTIVE", "진행 중인 캠페인이 아닙니다."),
     CAMPAIGN_SOLD_OUT(HttpStatus.CONFLICT, "CAMPAIGN_SOLD_OUT", "쿠폰이 모두 소진되었습니다."),
     CAMPAIGN_BUDGET_DECREASE(HttpStatus.CONFLICT, "CAMPAIGN_BUDGET_DECREASE", "예산은 늘리기만 가능합니다.");
+
     private final HttpStatus status;
     private final String code;
     private final String message;
@@ -20,14 +21,17 @@ public enum CampaignErrorCode implements ErrorCode {
         this.message = message;
     }
 
+    @Override
     public HttpStatus status() {
         return status;
     }
 
+    @Override
     public String code() {
         return code;
     }
 
+    @Override
     public String message() {
         return message;
     }

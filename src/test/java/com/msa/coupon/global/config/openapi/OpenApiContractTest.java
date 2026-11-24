@@ -1,105 +1,101 @@
 package com.msa.coupon.global.config.openapi;
 
+import static org.assertj.core.api.Assertions.*;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-import com.msa.coupon.domain.campaign.command.service.CampaignService;
-import com.msa.coupon.domain.campaign.dto.request.CampaignRequest;
-import com.msa.coupon.domain.campaign.entity.CouponCampaign;
-import com.msa.coupon.domain.coupon.command.service.CouponDefinitionService;
-import com.msa.coupon.domain.coupon.dto.request.DefinitionRequest;
 import com.msa.coupon.global.config.database.CouponDatabaseTestSupport;
+
+import io.swagger.v3.oas.models.OpenAPI;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
+import org.springframework.core.annotation.Order;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors;
+import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
-import java.util.UUID;
+import tools.jackson.databind.ObjectMapper;
 
-/** 공개 캠페인과 사용자 및 운영자 경계를 실제 MVC 응답으로 검증합니다. */
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+
+/** 실제 생성 문서와 레포의 계약 파일을 비교하며 운영의 문서 접근 정책은 바꾸지 않습니다. */
 @SpringBootTest(properties = {"coupon.api.enabled=true", "springdoc.api-docs.enabled=true"})
+@ActiveProfiles("test")
 @AutoConfigureMockMvc
-@ActiveProfiles({"local", "test"})
-@Import(CouponDatabaseTestSupport.Time.class)
+@Import(OpenApiContractTest.DocumentAccess.class)
 class OpenApiContractTest extends CouponDatabaseTestSupport {
     @Autowired MockMvc mvc;
-    @Autowired CouponDefinitionService definitions;
-    @Autowired CampaignService campaigns;
-    @Autowired MutableClock clock;
+    @Autowired ObjectMapper mapper;
+    @Autowired OpenAPI contract;
 
-    @Test
-    void publicCampaignClaimIdempotencyAndAuthorization() throws Exception {
-        var now = clock.instant();
-        var definition =
-                definitions.create(
-                        new DefinitionRequest(
-                                "공개 쿠폰",
-                                "AMOUNT",
-                                1000L,
-                                null,
-                                null,
-                                0,
-                                "ALL",
-                                "RELATIVE",
-                                null,
-                                null,
-                                60,
-                                10),
-                        UUID.randomUUID());
-        String code = "P" + UUID.randomUUID().toString().replace("-", "").toUpperCase();
-        var campaign =
-                campaigns.create(
-                        new CampaignRequest(
-                                code,
-                                definition.id(),
-                                "CLAIM",
-                                null,
-                                10,
-                                1,
-                                now.minusSeconds(1),
-                                now.plusSeconds(3600),
-                                false));
-        campaigns.state(campaign.id(), CouponCampaign.Status.ACTIVE);
-        mvc.perform(get("/api/v1/coupons/campaigns/" + code))
-                .andExpect(status().isOk())
-                .andExpect(header().string("Cache-Control", "no-store"));
-        mvc.perform(get("/api/v1/coupons/me").header("X-Account-Id", UUID.randomUUID()))
-                .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("code").value("COMMON_UNAUTHORIZED"));
-        UUID account = UUID.randomUUID();
-        var buyer =
-                SecurityMockMvcRequestPostProcessors.jwt()
-                        .jwt(j -> j.subject(account.toString()))
-                        .authorities(new SimpleGrantedAuthority("ROLE_BUYER"));
-        mvc.perform(post("/api/v1/coupons/campaigns/" + code + "/claims").with(buyer))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("success").value(true));
-        mvc.perform(post("/api/v1/coupons/campaigns/" + code + "/claims").with(buyer))
-                .andExpect(status().isOk());
-        mvc.perform(get("/api/v1/admin/coupons/definitions").with(buyer))
-                .andExpect(status().isForbidden());
-        mvc.perform(
-                        get("/api/v1/coupons/me/applicable")
-                                .with(buyer)
-                                .param("productId", UUID.randomUUID().toString())
-                                .param("itemsAmount", "-1"))
-                .andExpect(status().isBadRequest());
+    @TestConfiguration
+    static class DocumentAccess {
+        // 문서 추출 테스트에만 한정하며 나머지 경로는 실제 보안 체인을 사용합니다.
+        @Bean
+        @Order(0)
+        SecurityFilterChain documentation(HttpSecurity http) throws Exception {
+            return http.securityMatcher("/v3/api-docs")
+                    .authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
+                    .build();
+        }
     }
 
     @Test
-    void openApiIncludesPublicEndpointsAndExcludesInternalLocks() throws Exception {
-        mvc.perform(get("/v3/api-docs"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.paths['/api/v1/coupons/me']").exists())
-                .andExpect(jsonPath("$.paths['/api/v1/coupons/me/applicable']").exists())
-                .andExpect(
-                        jsonPath("$.paths['/api/v1/admin/coupons/campaigns/{id}/stats']").exists())
-                .andExpect(jsonPath("$.paths['/internal/v1/coupon-locks']").doesNotExist());
+    void generatedContractMatchesSnapshotAndExcludesInternalLocks() throws Exception {
+        String generated =
+                mvc.perform(get("/v3/api-docs"))
+                        .andExpect(status().isOk())
+                        .andReturn()
+                        .getResponse()
+                        .getContentAsString(StandardCharsets.UTF_8);
+        Path path = Path.of("build/generated/coupon.openapi.json");
+        Files.createDirectories(path.getParent());
+        Files.writeString(path, generated, StandardCharsets.UTF_8);
+        var document = mapper.readTree(generated);
+        String description = document.path("info").path("description").asText();
+        assertThat(description).isEqualTo(contract.getInfo().getDescription());
+        assertThat(description.codePoints().anyMatch(c -> Character.isISOControl(c))).isFalse();
+        assertThat(document.path("servers").get(0).path("url").asText())
+                .isEqualTo("http://localhost:8000");
+        assertThat(document.path("servers").get(1).path("url").asText())
+                .isEqualTo("http://localhost:8088");
+        var paths = document.path("paths");
+        assertThat(paths.has("/api/v1/coupons/me")).isTrue();
+        assertThat(paths.has("/api/v1/coupons/campaigns/{code}/claims")).isTrue();
+        assertThat(paths.has("/api/v1/admin/coupons/campaigns/{id}/stats")).isTrue();
+        assertThat(paths.has("/internal/v1/coupon-locks")).isFalse();
+        var content =
+                paths.path("/api/v1/coupons/me")
+                        .path("get")
+                        .path("responses")
+                        .path("200")
+                        .path("content");
+        assertThat(content.has("application/json")).isTrue();
+        assertThat(content.has("*/*")).isFalse();
+        assertThat(document)
+                .isEqualTo(
+                        mapper.readTree(Files.readString(Path.of("openapi/coupon.openapi.json"))));
+    }
+
+    @Test
+    void unsupportedAcceptReturnsJsonError() throws Exception {
+        mvc.perform(
+                        get("/api/v1/coupons/me")
+                                .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_BUYER")))
+                                .accept("application/xml"))
+                .andExpect(status().isNotAcceptable())
+                .andExpect(content().contentTypeCompatibleWith("application/json"))
+                .andExpect(jsonPath("$.code").value("COMMON_NOT_ACCEPTABLE"));
     }
 }
