@@ -1,0 +1,102 @@
+package com.msa.coupon.global.config.security;
+
+import com.msa.coupon.global.error.CommonErrorCode;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
+import org.springframework.security.oauth2.core.OAuth2Error;
+import org.springframework.security.oauth2.core.OAuth2TokenValidator;
+import org.springframework.security.oauth2.core.OAuth2TokenValidatorResult;
+import org.springframework.security.oauth2.jose.jws.SignatureAlgorithm;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.jwt.JwtIssuerValidator;
+import org.springframework.security.oauth2.jwt.JwtTimestampValidator;
+import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
+import org.springframework.security.web.SecurityFilterChain;
+
+import tools.jackson.databind.ObjectMapper;
+
+import java.time.Clock;
+import java.time.Duration;
+import java.util.Arrays;
+
+/** 주문 서비스 토큰만 내부 잠금 경로에 허용합니다. */
+@Configuration
+public class InternalSecurityConfig {
+    @Bean
+    @Order(0)
+    public SecurityFilterChain internalSecurity(
+            HttpSecurity http,
+            AuthProperties auth,
+            Clock clock,
+            ObjectMapper mapper,
+            @Value("${ORDER_SERVICE_SUBJECT:}") String subject)
+            throws Exception {
+        var decoder =
+                NimbusJwtDecoder.withJwkSetUri(auth.jwkSetUri())
+                        .jwsAlgorithm(SignatureAlgorithm.RS256)
+                        .build();
+        var time = new JwtTimestampValidator(Duration.ofSeconds(30));
+        time.setClock(clock);
+        OAuth2TokenValidator<Jwt> contract =
+                jwt -> {
+                    String scope = jwt.getClaimAsString("scope");
+                    boolean allowed =
+                            !subject.isBlank()
+                                    && subject.equals(jwt.getSubject())
+                                    && "order-command-service"
+                                            .equals(jwt.getClaimAsString("client_id"))
+                                    && "service".equals(jwt.getClaimAsString("principal_type"))
+                                    && jwt.getExpiresAt() != null
+                                    && "access".equals(jwt.getClaimAsString("token_use"))
+                                    && jwt.getAudience() != null
+                                    && jwt.getAudience().contains(auth.audience())
+                                    && scope != null
+                                    && Arrays.asList(scope.split(" +")).contains("coupon.lock");
+                    return allowed
+                            ? OAuth2TokenValidatorResult.success()
+                            : OAuth2TokenValidatorResult.failure(new OAuth2Error("invalid_token"));
+                };
+        decoder.setJwtValidator(
+                new DelegatingOAuth2TokenValidator<>(
+                        time, new JwtIssuerValidator(auth.issuer()), contract));
+        return http.securityMatcher("/internal/v1/coupon-locks")
+                .csrf(c -> c.disable())
+                .cors(c -> c.disable())
+                .requestCache(c -> c.disable())
+                .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .formLogin(c -> c.disable())
+                .httpBasic(c -> c.disable())
+                .logout(c -> c.disable())
+                .authorizeHttpRequests(a -> a.anyRequest().authenticated())
+                .exceptionHandling(
+                        e ->
+                                e.authenticationEntryPoint(
+                                                (request, response, failure) ->
+                                                        SecurityConfig.error(
+                                                                response,
+                                                                CommonErrorCode.UNAUTHORIZED,
+                                                                mapper))
+                                        .accessDeniedHandler(
+                                                (request, response, failure) ->
+                                                        SecurityConfig.error(
+                                                                response,
+                                                                CommonErrorCode.FORBIDDEN,
+                                                                mapper)))
+                .oauth2ResourceServer(
+                        o ->
+                                o.jwt(j -> j.decoder(decoder))
+                                        .authenticationEntryPoint(
+                                                (request, response, failure) ->
+                                                        SecurityConfig.error(
+                                                                response,
+                                                                CommonErrorCode.UNAUTHORIZED,
+                                                                mapper)))
+                .build();
+    }
+}

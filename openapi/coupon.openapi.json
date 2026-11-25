@@ -1,0 +1,984 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "STOCKDROP Coupon",
+    "description": "쿠폰 받기와 쿠폰함 및 운영자 API를 제공합니다. 내부 주문 잠금 API는 문서에서 제외합니다.",
+    "version": "v1"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8000",
+      "description": "일반 Gateway"
+    },
+    {
+      "url": "http://localhost:8088",
+      "description": "로컬 개발 서비스"
+    }
+  ],
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "paths": {
+    "/api/v1/coupons/campaigns/{code}/claims": {
+      "post": {
+        "tags": [
+          "coupon-query-controller"
+        ],
+        "summary": "쿠폰 받기",
+        "description": "같은 캠페인에서 이미 받았다면 기존 발급을 돌려줍니다.",
+        "operationId": "claim",
+        "parameters": [
+          {
+            "name": "code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseIssueResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/coupons/issues/{id}/revoke": {
+      "post": {
+        "tags": [
+          "admin-coupon-issue-controller"
+        ],
+        "summary": "미사용 쿠폰 회수",
+        "description": "발급 상태 쿠폰만 회수할 수 있습니다.",
+        "operationId": "revoke",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseVoid"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/coupons/definitions": {
+      "get": {
+        "tags": [
+          "admin-coupon-definition-controller"
+        ],
+        "summary": "쿠폰 정의 목록",
+        "description": "운영자가 등록한 정의를 조회합니다.",
+        "operationId": "list",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseListDefinitionResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "admin-coupon-definition-controller"
+        ],
+        "summary": "쿠폰 정의 생성",
+        "description": "발급 시 복사할 할인 조건을 등록합니다.",
+        "operationId": "create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DefinitionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDefinitionResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/coupons/definitions/{id}/retire": {
+      "post": {
+        "tags": [
+          "admin-coupon-definition-controller"
+        ],
+        "summary": "쿠폰 정의 종료",
+        "description": "기존 발급 조건은 보존하고 새 발급만 중단합니다.",
+        "operationId": "retire",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDefinitionResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/coupons/campaigns": {
+      "get": {
+        "tags": [
+          "admin-campaign-controller"
+        ],
+        "summary": "캠페인 목록",
+        "description": "운영자가 캠페인의 예산과 상태를 확인합니다.",
+        "operationId": "list_1",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseListCampaignResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "admin-campaign-controller"
+        ],
+        "summary": "캠페인 생성",
+        "description": "새 캠페인은 초안 상태로 생성합니다.",
+        "operationId": "create_1",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CampaignRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseCampaignResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/coupons/campaigns/{id}/pause": {
+      "post": {
+        "tags": [
+          "admin-campaign-controller"
+        ],
+        "summary": "캠페인 일시정지",
+        "description": "새로운 발급을 중단합니다.",
+        "operationId": "pause",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseCampaignResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/coupons/campaigns/{id}/activate": {
+      "post": {
+        "tags": [
+          "admin-campaign-controller"
+        ],
+        "summary": "캠페인 활성화",
+        "description": "발급 기간 안에서 쿠폰 받기를 허용합니다.",
+        "operationId": "activate",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseCampaignResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/coupons/campaigns/{id}/budget": {
+      "patch": {
+        "tags": [
+          "admin-campaign-controller"
+        ],
+        "summary": "캠페인 예산 증액",
+        "description": "총 장수 예산을 늘릴 수 있습니다.",
+        "operationId": "budget",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BudgetRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseCampaignResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/coupons/me": {
+      "get": {
+        "tags": [
+          "coupon-query-controller"
+        ],
+        "summary": "내 쿠폰 조회",
+        "description": "사용 중인 쿠폰도 사용 가능 탭에 표시합니다.",
+        "operationId": "mine",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "AVAILABLE"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 0
+            }
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 20
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseListIssueResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/coupons/me/applicable": {
+      "get": {
+        "tags": [
+          "coupon-query-controller"
+        ],
+        "summary": "적용 가능 쿠폰 조회",
+        "description": "상품에 쓸 수 있는 쿠폰과 예상 할인액입니다. 실제 적용은 주문 잠금 때 다시 판단합니다.",
+        "operationId": "applicable",
+        "parameters": [
+          {
+            "name": "productId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "itemsAmount",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseListApplicableCouponResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/coupons/campaigns/{code}": {
+      "get": {
+        "tags": [
+          "coupon-query-controller"
+        ],
+        "summary": "받기 캠페인 조회",
+        "description": "로그인한 경우에만 이미 받았는지 표시합니다.",
+        "operationId": "campaign",
+        "parameters": [
+          {
+            "name": "code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponsePublicCampaignResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/coupons/campaigns/{id}/stats": {
+      "get": {
+        "tags": [
+          "admin-campaign-controller"
+        ],
+        "summary": "캠페인 통계",
+        "description": "발급과 사용 및 플랫폼 할인 합계를 조회합니다.",
+        "operationId": "stats",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseCampaignStatsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ApiResponseIssueResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/IssueResponse"
+          }
+        }
+      },
+      "IssueResponse": {
+        "type": "object",
+        "properties": {
+          "issueId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "discountType": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "rateBps": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "maxDiscount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "minItemsAmount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "scope": {
+            "type": "string"
+          },
+          "productId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "validUntil": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "status": {
+            "type": "string"
+          }
+        }
+      },
+      "ApiResponseVoid": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {}
+        }
+      },
+      "DefinitionRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 60,
+            "minLength": 0
+          },
+          "discountType": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "rateBps": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "maxDiscount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "minItemsAmount": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "scope": {
+            "type": "string"
+          },
+          "validityMode": {
+            "type": "string"
+          },
+          "validFrom": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "validUntil": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "validMinutes": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "noticeLeadMinutes": {
+            "type": "integer",
+            "format": "int32",
+            "exclusiveMinimum": 0
+          }
+        },
+        "required": [
+          "discountType",
+          "name",
+          "scope",
+          "validityMode"
+        ]
+      },
+      "ApiResponseDefinitionResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/DefinitionResponse"
+          }
+        }
+      },
+      "DefinitionResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "discountType": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "rateBps": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "maxDiscount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "minItemsAmount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "scope": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "version": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "CampaignRequest": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "[A-Z0-9_]{1,40}"
+          },
+          "definitionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "kind": {
+            "type": "string",
+            "pattern": "CLAIM|TARGETED|MEMBER"
+          },
+          "ruleCode": {
+            "type": "string"
+          },
+          "totalBudget": {
+            "type": "integer",
+            "format": "int32",
+            "exclusiveMinimum": 0
+          },
+          "perAccountLimit": {
+            "type": "integer",
+            "format": "int32",
+            "maximum": 1,
+            "minimum": 1
+          },
+          "startsAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endsAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "demo": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "code",
+          "definitionId",
+          "endsAt",
+          "kind",
+          "startsAt"
+        ]
+      },
+      "ApiResponseCampaignResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/CampaignResponse"
+          }
+        }
+      },
+      "CampaignResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "code": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "totalBudget": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "issuedCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "status": {
+            "type": "string"
+          },
+          "startsAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endsAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "demo": {
+            "type": "boolean"
+          }
+        }
+      },
+      "BudgetRequest": {
+        "type": "object",
+        "properties": {
+          "totalBudget": {
+            "type": "integer",
+            "format": "int32",
+            "exclusiveMinimum": 0
+          }
+        }
+      },
+      "ApiResponseListIssueResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IssueResponse"
+            }
+          }
+        }
+      },
+      "ApiResponseListApplicableCouponResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ApplicableCouponResponse"
+            }
+          }
+        }
+      },
+      "ApplicableCouponResponse": {
+        "type": "object",
+        "properties": {
+          "coupon": {
+            "$ref": "#/components/schemas/IssueResponse"
+          },
+          "estimatedDiscount": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "ApiResponsePublicCampaignResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/PublicCampaignResponse"
+          }
+        }
+      },
+      "PublicCampaignResponse": {
+        "type": "object",
+        "properties": {
+          "campaign": {
+            "$ref": "#/components/schemas/CampaignResponse"
+          },
+          "definition": {
+            "$ref": "#/components/schemas/DefinitionResponse"
+          },
+          "remaining": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "claimed": {
+            "type": "boolean"
+          }
+        }
+      },
+      "ApiResponseListDefinitionResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DefinitionResponse"
+            }
+          }
+        }
+      },
+      "ApiResponseListCampaignResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CampaignResponse"
+            }
+          }
+        }
+      },
+      "ApiResponseCampaignStatsResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/CampaignStatsResponse"
+          }
+        }
+      },
+      "CampaignStatsResponse": {
+        "type": "object",
+        "properties": {
+          "issued": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "used": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "released": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "expired": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "discountTotal": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  }
+}
