@@ -20,6 +20,9 @@ import java.util.UUID;
 @Service
 @Transactional(timeout = 5)
 public class CouponDefinitionServiceImpl implements CouponDefinitionService {
+    // 만료 임박 알림 기본 시점은 설계의 평상 정의 기준 24시간 전입니다.
+    static final int DEFAULT_NOTICE_LEAD_MINUTES = 24 * 60;
+
     private final CouponDefinitionRepository definitions;
     private final Clock clock;
 
@@ -68,13 +71,16 @@ public class CouponDefinitionServiceImpl implements CouponDefinitionService {
                                 .amount(r.amount())
                                 .rateBps(r.rateBps())
                                 .maxDiscount(r.maxDiscount())
-                                .minItemsAmount(r.minItemsAmount())
+                                .minItemsAmount(r.minItemsAmount() == null ? 0 : r.minItemsAmount())
                                 .scope(r.scope())
                                 .validityMode(r.validityMode())
                                 .validFrom(r.validFrom())
                                 .validUntil(r.validUntil())
                                 .validMinutes(r.validMinutes())
-                                .noticeLeadMinutes(r.noticeLeadMinutes())
+                                .noticeLeadMinutes(
+                                        r.noticeLeadMinutes() == null
+                                                ? DEFAULT_NOTICE_LEAD_MINUTES
+                                                : r.noticeLeadMinutes())
                                 .status(CouponDefinition.Status.ACTIVE)
                                 .version(1)
                                 .createdBy(actor)

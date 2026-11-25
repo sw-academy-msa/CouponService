@@ -1,5 +1,7 @@
 package com.msa.coupon.domain.campaign.dto.request;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -12,7 +14,7 @@ import lombok.Builder;
 import java.time.Instant;
 import java.util.UUID;
 
-/** 운영자 캠페인 생성 요청입니다. 사람당 상한은 유니크로 강제할 수 있는 1만 받습니다. */
+/** 운영자 캠페인 생성 요청입니다. 사람당 상한은 1만 받고 demo를 빼면 평상 캠페인입니다. */
 @Builder
 public record CampaignRequest(
         @NotBlank @Pattern(regexp = "[A-Z0-9_]{1,40}") String code,
@@ -23,7 +25,7 @@ public record CampaignRequest(
         @Min(1) @Max(1) int perAccountLimit,
         @NotNull Instant startsAt,
         @NotNull Instant endsAt,
-        boolean demo) {
+        @Schema(defaultValue = "false") Boolean demo) {
     @Override
     public String toString() {
         return "CampaignRequest[REDACTED]";
