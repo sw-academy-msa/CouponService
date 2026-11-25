@@ -53,7 +53,7 @@ class CouponSecurityIntegrationTest extends CouponDatabaseTestSupport {
                                 1000L,
                                 null,
                                 null,
-                                0,
+                                0L,
                                 "ALL",
                                 "RELATIVE",
                                 null,

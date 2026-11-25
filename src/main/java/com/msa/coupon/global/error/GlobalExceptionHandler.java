@@ -20,6 +20,13 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.exc.MismatchedInputException;
+
+import java.util.List;
+import java.util.Objects;
+import java.util.stream.Collectors;
+
 /** MVC 예외를 Account와 같은 형식으로 변환하며 SQL·요청값이 담긴 예외 원문은 기록하지 않습니다. */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -44,8 +51,28 @@ public class GlobalExceptionHandler {
                 .body(ErrorResponse.validation(MDC.get("traceId"), fields));
     }
 
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ErrorResponse> unreadable(HttpMessageNotReadableException exception) {
+        // 형식이 틀린 칸은 이름만 알리고 거절된 값과 예외 원문은 포함하지 않습니다.
+        if (exception.getCause() instanceof MismatchedInputException mismatch) {
+            String field =
+                    mismatch.getPath().stream()
+                            .map(JacksonException.Reference::getPropertyName)
+                            .filter(Objects::nonNull)
+                            .collect(Collectors.joining("."));
+            if (!field.isEmpty())
+                return ResponseEntity.badRequest()
+                        .body(
+                                ErrorResponse.validation(
+                                        MDC.get("traceId"),
+                                        List.of(
+                                                new ErrorResponse.FieldViolation(
+                                                        field, "형식이 올바르지 않습니다."))));
+        }
+        return response(CommonErrorCode.INVALID_REQUEST);
+    }
+
     @ExceptionHandler({
-        HttpMessageNotReadableException.class,
         MethodArgumentTypeMismatchException.class,
         MissingServletRequestParameterException.class
     })

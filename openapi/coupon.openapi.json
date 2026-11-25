@@ -598,6 +598,7 @@
           "minItemsAmount": {
             "type": "integer",
             "format": "int64",
+            "default": 0,
             "minimum": 0
           },
           "scope": {
@@ -621,6 +622,7 @@
           "noticeLeadMinutes": {
             "type": "integer",
             "format": "int32",
+            "default": 1440,
             "exclusiveMinimum": 0
           }
         },
@@ -728,7 +730,8 @@
             "format": "date-time"
           },
           "demo": {
-            "type": "boolean"
+            "type": "boolean",
+            "default": false
           }
         },
         "required": [

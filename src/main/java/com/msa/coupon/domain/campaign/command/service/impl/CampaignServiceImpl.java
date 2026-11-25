@@ -93,7 +93,7 @@ public class CampaignServiceImpl implements CampaignService {
                                 .startsAt(r.startsAt())
                                 .endsAt(r.endsAt())
                                 .status(CouponCampaign.Status.DRAFT)
-                                .demo(r.demo())
+                                .demo(Boolean.TRUE.equals(r.demo()))
                                 .createdAt(n)
                                 .updatedAt(n)
                                 .build()));
