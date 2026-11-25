@@ -13,4 +13,4 @@ RUN groupadd --system spring && useradd --system --gid spring spring
 COPY --from=builder --chown=spring:spring /workspace/build/libs/*.jar app.jar
 USER spring:spring
 EXPOSE 8088
-ENTRYPOINT ["java", "-XX:+UseContainerSupport", "-XX:MaxRAMPercentage=75.0", "-XX:+ExitOnOutOfMemoryError", "-jar", "/app/app.jar"]
+ENTRYPOINT ["java", "-XX:+UseContainerSupport", "-XX:MaxRAMPercentage=50.0", "-XX:+ExitOnOutOfMemoryError", "-jar", "/app/app.jar"]
