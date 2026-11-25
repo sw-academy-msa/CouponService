@@ -1,0 +1,23 @@
+# 테스트는 개발 DB 대신 격리된 PostgreSQL을 주입합니다.
+coupon:
+  api:
+    enabled: false
+  consumer:
+    enabled: false
+  scheduler:
+    enabled: false
+  outbox:
+    publisher-enabled: false
+eureka:
+  client:
+    enabled: false
+spring:
+  kafka:
+    listener:
+      auto-startup: false
+  # 일반 테스트는 Hibernate로 테이블을 만들고, Flyway SQL은 FlywayMigrationTest가 따로 검증합니다.
+  flyway:
+    enabled: false
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
