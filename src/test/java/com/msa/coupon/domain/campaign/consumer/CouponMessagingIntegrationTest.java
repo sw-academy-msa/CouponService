@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.*;
 import static org.awaitility.Awaitility.await;
 
 import com.msa.coupon.domain.campaign.dto.request.MembershipEvent;
+import com.msa.coupon.domain.coupon.repository.CouponIssueRepository;
+import com.msa.coupon.domain.receipt.repository.CouponEventReceiptRepository;
 import com.msa.coupon.global.config.database.CouponDatabaseTestSupport;
 
 import org.apache.kafka.clients.admin.Admin;
@@ -68,6 +70,43 @@ class CouponMessagingIntegrationTest extends CouponDatabaseTestSupport {
     @Autowired DefaultErrorHandler handler;
     @Autowired ObjectMapper mapper;
     @Autowired MutableClock clock;
+    @Autowired CouponEventReceiptRepository receipts;
+    @Autowired CouponIssueRepository issues;
+
+    @Test
+    void nonIssuingPaymentResultsCommitThroughKafkaWithoutCampaigns() throws Exception {
+        long issuedBefore = issues.count();
+        var events = new ArrayList<MembershipEvent>();
+        for (String type :
+                List.of(
+                        "MEMBERSHIP_CANCELED",
+                        "MEMBERSHIP_WITHDRAWN",
+                        "MEMBERSHIP_RENEWAL_PENDING")) {
+            var event =
+                    new MembershipEvent(
+                            UUID.randomUUID(),
+                            1,
+                            type,
+                            "PAYMENT",
+                            UUID.randomUUID(),
+                            UUID.randomUUID(),
+                            1,
+                            1,
+                            type.equals("MEMBERSHIP_RENEWAL_PENDING") ? 2 : 0,
+                            clock.instant().plusSeconds(3600),
+                            clock.instant());
+            events.add(event);
+            kafka.send(MEMBER, event.accountId().toString(), mapper.writeValueAsBytes(event))
+                    .get(10, TimeUnit.SECONDS);
+        }
+        await().atMost(Duration.ofSeconds(30))
+                .untilAsserted(
+                        () -> {
+                            for (var event : events)
+                                assertThat(receipts.findById(event.eventId())).isPresent();
+                        });
+        assertThat(issues.count()).isEqualTo(issuedBefore);
+    }
 
     KafkaConsumer<String, byte[]> dlt(String topic) {
         var consumer =

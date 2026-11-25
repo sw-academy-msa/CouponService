@@ -25,6 +25,17 @@ import java.util.Set;
 @Component
 @ConditionalOnProperty(name = "coupon.consumer.enabled", havingValue = "true")
 public class MembershipEventConsumer {
+    private static final Set<String> TYPES =
+            Set.of(
+                    "MEMBERSHIP_STARTED",
+                    "MEMBERSHIP_RENEWED",
+                    "MEMBERSHIP_RENEWAL_PENDING",
+                    "MEMBERSHIP_PAYMENT_FAILED",
+                    "MEMBERSHIP_CANCELED",
+                    "MEMBERSHIP_EXPIRED",
+                    "MEMBERSHIP_WITHDRAWN");
+    private static final Set<String> ISSUING_TYPES =
+            Set.of("MEMBERSHIP_STARTED", "MEMBERSHIP_RENEWED");
     private final ObjectMapper mapper;
     private final CouponReceiptService receipts;
     private final CouponCampaignRepository campaigns;
@@ -66,15 +77,11 @@ public class MembershipEventConsumer {
                     || event.schemaVersion() != 1
                     || !"PAYMENT".equals(event.source())
                     || event.generation() < 1
-                    || event.cycleNumber() < 1
+                    || event.aggregateVersion() < 1
+                    || event.cycleNumber() < 0
+                    || (ISSUING_TYPES.contains(event.type()) && event.cycleNumber() == 0)
                     || event.occurredAt() == null
-                    || !Set.of(
-                                    "MEMBERSHIP_STARTED",
-                                    "MEMBERSHIP_RENEWED",
-                                    "MEMBERSHIP_PAYMENT_FAILED",
-                                    "MEMBERSHIP_CANCELLATION_SCHEDULED",
-                                    "MEMBERSHIP_EXPIRED")
-                            .contains(event.type())) {
+                    || !TYPES.contains(event.type())) {
                 throw new InvalidCouponEventException();
             }
         } catch (Exception failure) {
@@ -84,7 +91,8 @@ public class MembershipEventConsumer {
                 event.eventId(),
                 "stockdrop.membership.events.private.v1",
                 EventHash.of(new String(body, StandardCharsets.UTF_8)))) return;
-        if (!Set.of("MEMBERSHIP_STARTED", "MEMBERSHIP_RENEWED").contains(event.type())) return;
+        // 해지와 탈퇴의 주기 0도 처리 기록만 남기고 기존 쿠폰과 예산은 바꾸지 않습니다.
+        if (!ISSUING_TYPES.contains(event.type())) return;
         if (event.entitlementUntil() == null) throw new InvalidCouponEventException();
         if (!event.entitlementUntil().isAfter(clock.instant())) return;
 
@@ -92,8 +100,10 @@ public class MembershipEventConsumer {
                 event.subscriptionId() + ":" + event.generation() + ":" + event.cycleNumber();
         if (issues.findBySourceAndSourceRef("MEMBER", reference).isPresent()) return;
         var active =
-                campaigns.findByKindAndStatusOrderByCreatedAtAsc(
-                                CouponCampaign.Kind.MEMBER, CouponCampaign.Status.ACTIVE).stream()
+                campaigns
+                        .findByKindAndStatusOrderByCreatedAtAsc(
+                                CouponCampaign.Kind.MEMBER, CouponCampaign.Status.ACTIVE)
+                        .stream()
                         .filter(
                                 c ->
                                         !clock.instant().isBefore(c.startsAt)
