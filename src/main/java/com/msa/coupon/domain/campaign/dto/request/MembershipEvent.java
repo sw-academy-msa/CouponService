@@ -19,7 +19,7 @@ public record MembershipEvent(
         UUID subscriptionId,
         long generation,
         long aggregateVersion,
-        int cycleNumber,
+        long cycleNumber,
         Instant entitlementUntil,
         Instant occurredAt) {
     @Override

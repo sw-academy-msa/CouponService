@@ -29,9 +29,13 @@ import com.msa.coupon.domain.lock.service.CouponLockService;
 import com.msa.coupon.domain.lock.service.CouponLockWorkStore;
 import com.msa.coupon.domain.outbox.repository.OutboxEventRepository;
 import com.msa.coupon.domain.receipt.InvalidCouponEventException;
+import com.msa.coupon.domain.receipt.repository.CouponEventReceiptRepository;
 import com.msa.coupon.global.config.database.CouponDatabaseTestSupport;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
@@ -193,6 +197,67 @@ class CouponConcurrencyIntegrationTest extends CouponDatabaseTestSupport {
     @Autowired OutboxEventRepository outbox;
     @Autowired MembershipEventConsumer membership;
     @Autowired ObjectMapper mapper;
+    @Autowired CouponEventReceiptRepository receipts;
+
+    @ParameterizedTest
+    @CsvSource({
+        "MEMBERSHIP_CANCELED,0",
+        "MEMBERSHIP_WITHDRAWN,0",
+        "MEMBERSHIP_RENEWAL_PENDING,2",
+        "MEMBERSHIP_PAYMENT_FAILED,1",
+        "MEMBERSHIP_EXPIRED,1"
+    })
+    void nonIssuingMembershipResultsOnlyCommitAnIdempotentReceipt(String type, long cycle) {
+        long issuedBefore = issues.count();
+        long outboxBefore = outbox.count();
+        var event =
+                new MembershipEvent(
+                        UUID.randomUUID(),
+                        1,
+                        type,
+                        "PAYMENT",
+                        UUID.randomUUID(),
+                        UUID.randomUUID(),
+                        1,
+                        1,
+                        cycle,
+                        clock.instant().plusSeconds(1200),
+                        clock.instant());
+        byte[] body = mapper.writeValueAsBytes(event);
+        membership.receive(body);
+        membership.receive(body);
+        assertThat(receipts.findById(event.eventId())).isPresent();
+        assertThat(issues.count()).isEqualTo(issuedBefore);
+        assertThat(outbox.count()).isEqualTo(outboxBefore);
+        assertThatThrownBy(
+                        () ->
+                                membership.receive(
+                                        (mapper.writeValueAsString(event) + " ")
+                                                .getBytes(java.nio.charset.StandardCharsets.UTF_8)))
+                .isInstanceOf(InvalidCouponEventException.class);
+        assertThat(receipts.findById(event.eventId())).isPresent();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"MEMBERSHIP_STARTED", "MEMBERSHIP_RENEWED"})
+    void issuingMembershipResultsRejectCycleZeroWithoutReceipt(String type) {
+        var event =
+                new MembershipEvent(
+                        UUID.randomUUID(),
+                        1,
+                        type,
+                        "PAYMENT",
+                        UUID.randomUUID(),
+                        UUID.randomUUID(),
+                        1,
+                        1,
+                        0,
+                        clock.instant().plusSeconds(1200),
+                        clock.instant());
+        assertThatThrownBy(() -> membership.receive(mapper.writeValueAsBytes(event)))
+                .isInstanceOf(InvalidCouponEventException.class);
+        assertThat(receipts.findById(event.eventId())).isEmpty();
+    }
 
     @Test
     void pendingConsentFailureRetainsWorkAndRejectsPayloadConflict() {
@@ -237,8 +302,9 @@ class CouponConcurrencyIntegrationTest extends CouponDatabaseTestSupport {
                 .isEqualTo(CouponPendingTarget.Status.DONE);
     }
 
-    @Test
-    void membershipCycleIssuesOnceAndWritesNoticeInSameTransaction() {
+    @ParameterizedTest
+    @ValueSource(strings = {"MEMBERSHIP_STARTED", "MEMBERSHIP_RENEWED"})
+    void membershipCycleIssuesOnceAndWritesNoticeInSameTransaction(String type) {
         var now = clock.instant();
         var definition =
                 definitions.create(
@@ -275,7 +341,7 @@ class CouponConcurrencyIntegrationTest extends CouponDatabaseTestSupport {
                 new MembershipEvent(
                         UUID.randomUUID(),
                         1,
-                        "MEMBERSHIP_STARTED",
+                        type,
                         "PAYMENT",
                         account,
                         subscription,
@@ -406,9 +472,7 @@ class CouponConcurrencyIntegrationTest extends CouponDatabaseTestSupport {
                         n -> {
                             try {
                                 return claims.claim(code, UUID.randomUUID()).created();
-                            } catch (
-                                    CampaignException
-                                            soldOut) {
+                            } catch (CampaignException soldOut) {
                                 return false;
                             }
                         });
@@ -488,9 +552,7 @@ class CouponConcurrencyIntegrationTest extends CouponDatabaseTestSupport {
                                                 20000,
                                                 clock.instant().plusSeconds(300)));
                                 return true;
-                            } catch (
-                                    CouponException
-                                            conflict) {
+                            } catch (CouponException conflict) {
                                 return false;
                             }
                         });

@@ -49,3 +49,19 @@ notificationType: COUPON_SALE_OPEN, COUPON_CHECKOUT_REMINDER, COUPON_SIMILAR_DRO
 
 - 서비스 토큰: `POST /internal/v1/auth/service-tokens`, client_id `coupon-service`, scope `account.notifications.read order.coupon.read`. 비밀값은 `COUPON_CLIENT_SECRET`, 주체는 `COUPON_SERVICE_SUBJECT` 환경변수입니다.
 - 동의 확인: `GET /internal/v1/notification-eligibility?accountId=&purpose=PERSONALIZED` → `data.eligible`. 거절이면 발급하지 않고, 확인 불가이면 재시도합니다.
+
+## 6. 회원제 결과 계약 대조
+
+Payment의 MembershipResultOutboxServiceImpl과 Account의 MembershipProjectionServiceImpl 허용 목록을 기준으로 다음 결과 일곱 종류를 받습니다. 모두 schemaVersion=1, source=PAYMENT, generation 및 aggregateVersion은 1 이상이고 cycleNumber는 long입니다.
+
+| type | 쿠폰 처리 | cycleNumber |
+|---|---|---|
+| MEMBERSHIP_STARTED | 주기별 1회 발급 및 알림 | 1 이상 |
+| MEMBERSHIP_RENEWED | 주기별 1회 발급 및 알림 | 1 이상 |
+| MEMBERSHIP_RENEWAL_PENDING | receipt만 저장 | 0 이상 |
+| MEMBERSHIP_PAYMENT_FAILED | receipt만 저장 | 0 이상 |
+| MEMBERSHIP_CANCELED | receipt만 저장, 기존 쿠폰 유지 | 0 이상, 실제 해지 결과는 0 |
+| MEMBERSHIP_EXPIRED | receipt만 저장, 기존 쿠폰 유지 | 0 이상 |
+| MEMBERSHIP_WITHDRAWN | receipt만 저장, 기존 쿠폰 유지 | 0 이상, 실제 탈퇴 결과는 0 |
+
+MEMBERSHIP_CANCELLATION_SCHEDULED는 실제 Payment 결과 이름이 아니므로 허용 목록에서 제거했습니다. Account에서 Payment로 보내는 MEMBERSHIP_CANCEL_REQUESTED 명령과 Account 알림용 MEMBERSHIP_EXPIRING도 이 결과 토픽 계약에 포함하지 않습니다. 비발급 결과는 활성 MEMBER 캠페인 유무와 무관하게 receipt를 커밋하며 쿠폰, 발급 예산 및 Outbox를 바꾸지 않습니다. 같은 eventId와 같은 본문은 멱등이고 다른 본문은 기존 계약대로 DLT 대상입니다.
