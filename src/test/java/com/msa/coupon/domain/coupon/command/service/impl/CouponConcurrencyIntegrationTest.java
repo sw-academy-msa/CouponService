@@ -64,6 +64,89 @@ import java.util.function.IntFunction;
 @Import(CouponDatabaseTestSupport.Time.class)
 class CouponConcurrencyIntegrationTest extends CouponDatabaseTestSupport {
     @Test
+    void productClaimIsBoundToCampaignAndCannotLockAnotherProduct() {
+        var now = clock.instant();
+        var product = UUID.randomUUID();
+        var account = UUID.randomUUID();
+        var definition =
+                definitions.create(
+                        new DefinitionRequest(
+                                "상품 쿠폰",
+                                "AMOUNT",
+                                1000L,
+                                null,
+                                null,
+                                10000L,
+                                "PRODUCT",
+                                "RELATIVE",
+                                null,
+                                null,
+                                60,
+                                10),
+                        UUID.randomUUID());
+        var campaign =
+                campaigns.create(
+                        new CampaignRequest(
+                                "P" + UUID.randomUUID().toString().replace("-", "").toUpperCase(),
+                                definition.id(),
+                                "CLAIM",
+                                null,
+                                10,
+                                1,
+                                now.minusSeconds(1),
+                                now.plusSeconds(3600),
+                                false,
+                                product));
+        campaigns.state(campaign.id(), CouponCampaign.Status.ACTIVE);
+        assertThat(queries.campaign(campaign.code(), account).campaign().productId())
+                .isEqualTo(product);
+        var claimed = claims.claim(campaign.code(), account);
+        assertThat(claimed.coupon().productId()).isEqualTo(product);
+        assertThat(claimed.coupon().scope()).isEqualTo("PRODUCT");
+        assertThat(claims.claim(campaign.code(), account).created()).isFalse();
+        assertThat(queries.applicable(account, UUID.randomUUID(), 20000)).isEmpty();
+        assertThat(queries.applicable(account, product, 20000)).hasSize(1);
+        assertThatThrownBy(
+                        () ->
+                                lockService.lock(
+                                        new LockRequest(
+                                                UUID.randomUUID(),
+                                                claimed.coupon().issueId(),
+                                                account,
+                                                UUID.randomUUID(),
+                                                UUID.randomUUID(),
+                                                20000,
+                                                now.plusSeconds(300))))
+                .isInstanceOf(CouponException.class)
+                .hasMessageContaining("상품");
+        assertThat(
+                        lockService.lock(
+                                new LockRequest(
+                                        UUID.randomUUID(),
+                                        claimed.coupon().issueId(),
+                                        account,
+                                        product,
+                                        UUID.randomUUID(),
+                                        20000,
+                                        now.plusSeconds(300))))
+                .isNotNull();
+        assertThatThrownBy(
+                        () ->
+                                campaigns.create(
+                                        new CampaignRequest(
+                                                "WRONG",
+                                                definition.id(),
+                                                "CLAIM",
+                                                null,
+                                                10,
+                                                1,
+                                                now,
+                                                now.plusSeconds(3600),
+                                                false)))
+                .isInstanceOf(CouponException.class);
+    }
+
+    @Test
     void concurrentSameOrderReturnsOneLock() throws Exception {
         UUID account = UUID.randomUUID();
         UUID issue = claims.claim(campaign(2), account).coupon().issueId();

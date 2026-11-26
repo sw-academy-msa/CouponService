@@ -63,13 +63,16 @@ public class CampaignServiceImpl implements CampaignService {
     public CampaignResponse create(CampaignRequest r) {
         var kind = CouponCampaign.Kind.valueOf(r.kind());
         if (!r.startsAt().isBefore(r.endsAt())
-                || r.perAccountLimit() != 1) throw new CouponException(CouponErrorCode.INVALID);
+                || r.perAccountLimit() != 1
+                || (r.productId() != null && kind != CouponCampaign.Kind.CLAIM))
+            throw new CouponException(CouponErrorCode.INVALID);
         var d =
                 definitions
                         .findById(r.definitionId())
                         .orElseThrow(() -> new CouponException(CouponErrorCode.COUPON_NOT_FOUND));
         if (d.status != CouponDefinition.Status.ACTIVE
-                || (kind != CouponCampaign.Kind.TARGETED && !"ALL".equals(d.scope))
+                || (kind != CouponCampaign.Kind.TARGETED
+                        && !(r.productId() == null ? "ALL" : "PRODUCT").equals(d.scope))
                 || (kind == CouponCampaign.Kind.TARGETED
                         && (!"PRODUCT".equals(d.scope)
                                 || !Set.of(
@@ -86,6 +89,7 @@ public class CampaignServiceImpl implements CampaignService {
                                 .id(UUID.randomUUID())
                                 .code(r.code())
                                 .definitionId(r.definitionId())
+                                .productId(r.productId())
                                 .kind(kind)
                                 .ruleCode(r.ruleCode())
                                 .totalBudget(r.totalBudget())

@@ -51,7 +51,8 @@ public class ClaimCampaignNoticeServiceImpl implements ClaimCampaignNoticeServic
                         .lock(id)
                         .orElseThrow(
                                 () -> new CampaignException(CampaignErrorCode.CAMPAIGN_NOT_FOUND));
-        if (c.kind != CouponCampaign.Kind.CLAIM) throw new CouponException(CouponErrorCode.INVALID);
+        if (c.kind != CouponCampaign.Kind.CLAIM || c.productId != null)
+            throw new CouponException(CouponErrorCode.INVALID);
         // 재요청은 캠페인이 마감된 뒤에도 최초 접수 결과를 반환합니다.
         if (c.notificationSentAt != null) return CampaignResponse.from(c);
         var now = clock.instant();
