@@ -18,7 +18,8 @@ public record CampaignResponse(
         String status,
         Instant startsAt,
         Instant endsAt,
-        boolean demo) {
+        boolean demo,
+        Instant notificationSentAt) {
     @Override
     public String toString() {
         return "CampaignResponse[REDACTED]";
@@ -34,7 +35,8 @@ public record CampaignResponse(
                 e.status.name(),
                 e.startsAt,
                 e.endsAt,
-                e.demo);
+                e.demo,
+                e.notificationSentAt);
     }
 
     /** 빌더 문자열에 담긴 값을 로그에 노출하지 않습니다. */

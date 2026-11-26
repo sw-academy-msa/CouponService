@@ -256,6 +256,39 @@
         }
       }
     },
+    "/api/v1/admin/coupons/campaigns/{id}/notifications": {
+      "post": {
+        "tags": [
+          "admin-claim-campaign-notice-controller"
+        ],
+        "summary": "받기형 캠페인 알림 보내기",
+        "description": "광고 동의한 비관리자 구매자에게 쿠폰 받기 알림을 요청합니다. 재요청은 최초 결과를 반환합니다.",
+        "operationId": "send",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseCampaignResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/admin/coupons/campaigns/{id}/activate": {
       "post": {
         "tags": [
@@ -793,6 +826,10 @@
           },
           "demo": {
             "type": "boolean"
+          },
+          "notificationSentAt": {
+            "type": "string",
+            "format": "date-time"
           }
         }
       },
