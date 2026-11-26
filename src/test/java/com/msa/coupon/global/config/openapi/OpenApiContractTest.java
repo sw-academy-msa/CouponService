@@ -30,7 +30,12 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 /** 실제 생성 문서와 레포의 계약 파일을 비교하며 운영의 문서 접근 정책은 바꾸지 않습니다. */
-@SpringBootTest(properties = {"coupon.api.enabled=true", "springdoc.api-docs.enabled=true"})
+@SpringBootTest(
+        properties = {
+            "coupon.api.enabled=true",
+            "coupon.claim-notification-enabled=true",
+            "springdoc.api-docs.enabled=true"
+        })
 @ActiveProfiles("test")
 @AutoConfigureMockMvc
 @Import(OpenApiContractTest.DocumentAccess.class)
