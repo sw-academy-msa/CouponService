@@ -13,6 +13,7 @@ import com.msa.coupon.domain.coupon.repository.CouponDefinitionRepository;
 import com.msa.coupon.domain.outbox.repository.OutboxEventRepository;
 import com.msa.coupon.global.config.database.CouponDatabaseTestSupport;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -34,12 +35,29 @@ import java.util.concurrent.*;
 @AutoConfigureMockMvc
 @Import(CouponDatabaseTestSupport.Time.class)
 class ClaimCampaignNoticeIntegrationTest extends CouponDatabaseTestSupport {
+    private final java.util.List<UUID> createdCampaigns = new java.util.ArrayList<>();
+    private final java.util.List<UUID> createdDefinitions = new java.util.ArrayList<>();
     @Autowired CouponCampaignRepository campaigns;
     @Autowired CouponDefinitionRepository definitions;
     @Autowired OutboxEventRepository outbox;
     @Autowired ClaimCampaignNoticeService service;
     @Autowired MockMvc mvc;
     @Autowired ObjectMapper json;
+
+    /** 공유 테스트 DB에 활성 회원 캠페인을 남겨 다른 Kafka 검증을 바꾸지 않습니다. */
+    @AfterEach
+    void cleanFixtures() {
+        outbox.deleteAll(
+                outbox.findAll().stream()
+                        .filter(
+                                e ->
+                                        createdCampaigns.stream()
+                                                .anyMatch(
+                                                        id -> id.toString().equals(e.partitionKey)))
+                        .toList());
+        campaigns.deleteAllById(createdCampaigns);
+        definitions.deleteAllById(createdDefinitions);
+    }
 
     CouponCampaign campaign(
             CouponCampaign.Kind kind,
@@ -64,21 +82,30 @@ class ClaimCampaignNoticeIntegrationTest extends CouponDatabaseTestSupport {
                                 .createdAt(now)
                                 .updatedAt(now)
                                 .build());
-        return campaigns.save(
-                CouponCampaign.builder()
-                        .id(UUID.randomUUID())
-                        .code("C" + UUID.randomUUID().toString().replace("-", "").toUpperCase())
-                        .definitionId(d.id)
-                        .kind(kind)
-                        .status(status)
-                        .totalBudget(10)
-                        .issuedCount(issued)
-                        .perAccountLimit(1)
-                        .startsAt(starts)
-                        .endsAt(ends)
-                        .createdAt(now)
-                        .updatedAt(now)
-                        .build());
+        createdDefinitions.add(d.id);
+        var saved =
+                campaigns.save(
+                        CouponCampaign.builder()
+                                .id(UUID.randomUUID())
+                                .code(
+                                        "C"
+                                                + UUID.randomUUID()
+                                                        .toString()
+                                                        .replace("-", "")
+                                                        .toUpperCase())
+                                .definitionId(d.id)
+                                .kind(kind)
+                                .status(status)
+                                .totalBudget(10)
+                                .issuedCount(issued)
+                                .perAccountLimit(1)
+                                .startsAt(starts)
+                                .endsAt(ends)
+                                .createdAt(now)
+                                .updatedAt(now)
+                                .build());
+        createdCampaigns.add(saved.id);
+        return saved;
     }
 
     @Test
