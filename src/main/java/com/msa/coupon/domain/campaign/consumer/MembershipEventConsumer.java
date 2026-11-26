@@ -32,6 +32,8 @@ public class MembershipEventConsumer {
                     "MEMBERSHIP_RENEWAL_PENDING",
                     "MEMBERSHIP_PAYMENT_FAILED",
                     "MEMBERSHIP_CANCELED",
+                    "MEMBERSHIP_CANCEL_WITHDRAWN",
+                    "MEMBERSHIP_CANCEL_WITHDRAW_REJECTED",
                     "MEMBERSHIP_EXPIRED",
                     "MEMBERSHIP_WITHDRAWN");
     private static final Set<String> ISSUING_TYPES =

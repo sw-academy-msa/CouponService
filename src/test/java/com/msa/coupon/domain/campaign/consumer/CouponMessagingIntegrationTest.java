@@ -80,6 +80,8 @@ class CouponMessagingIntegrationTest extends CouponDatabaseTestSupport {
         for (String type :
                 List.of(
                         "MEMBERSHIP_CANCELED",
+                        "MEMBERSHIP_CANCEL_WITHDRAWN",
+                        "MEMBERSHIP_CANCEL_WITHDRAW_REJECTED",
                         "MEMBERSHIP_WITHDRAWN",
                         "MEMBERSHIP_RENEWAL_PENDING")) {
             var event =
