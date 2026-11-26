@@ -48,6 +48,7 @@ server:
   shutdown: graceful
   forward-headers-strategy: none
 coupon:
+  claim-notification-enabled: ${COUPON_CLAIM_NOTIFICATION_ENABLED:false}
   # 원본·Outbox 저장은 항상 수행하고 외부 처리·소비·발행만 명시적으로 활성화합니다.
   outbox:
     publisher-enabled: ${COUPON_OUTBOX_PUBLISHER_ENABLED:false}

@@ -51,6 +51,7 @@ public class CouponCampaign {
     public long rowVersion;
     public Instant createdAt;
     public Instant updatedAt;
+    public Instant notificationSentAt;
 
     protected CouponCampaign() {}
 
