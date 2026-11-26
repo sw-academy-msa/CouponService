@@ -19,7 +19,8 @@ public record CampaignResponse(
         Instant startsAt,
         Instant endsAt,
         boolean demo,
-        Instant notificationSentAt) {
+        Instant notificationSentAt,
+        UUID productId) {
     @Override
     public String toString() {
         return "CampaignResponse[REDACTED]";
@@ -36,7 +37,8 @@ public record CampaignResponse(
                 e.startsAt,
                 e.endsAt,
                 e.demo,
-                e.notificationSentAt);
+                e.notificationSentAt,
+                e.productId);
     }
 
     /** 빌더 문자열에 담긴 값을 로그에 노출하지 않습니다. */

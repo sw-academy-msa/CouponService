@@ -765,6 +765,11 @@
           "demo": {
             "type": "boolean",
             "default": false
+          },
+          "productId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "받기형 캠페인의 적용 상품 ID이며 생략하면 전체 상품입니다"
           }
         },
         "required": [
@@ -830,6 +835,10 @@
           "notificationSentAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "productId": {
+            "type": "string",
+            "format": "uuid"
           }
         }
       },
