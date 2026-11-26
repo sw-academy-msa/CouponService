@@ -33,6 +33,7 @@ public class CouponCampaign {
     @Id public UUID id;
     public String code;
     public UUID definitionId;
+    public UUID productId;
 
     @Enumerated(EnumType.STRING)
     public Kind kind;
@@ -60,6 +61,7 @@ public class CouponCampaign {
             UUID id,
             String code,
             UUID definitionId,
+            UUID productId,
             Kind kind,
             String ruleCode,
             int totalBudget,
@@ -75,6 +77,7 @@ public class CouponCampaign {
         this.id = id;
         this.code = code;
         this.definitionId = definitionId;
+        this.productId = productId;
         this.kind = kind;
         this.ruleCode = ruleCode;
         this.totalBudget = totalBudget;

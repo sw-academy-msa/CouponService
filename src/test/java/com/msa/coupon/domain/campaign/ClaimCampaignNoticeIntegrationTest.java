@@ -59,6 +59,23 @@ class ClaimCampaignNoticeIntegrationTest extends CouponDatabaseTestSupport {
         definitions.deleteAllById(createdDefinitions);
     }
 
+    @Test
+    void productClaimNoticeIsRejected() {
+        var now = Instant.parse("2030-01-01T00:00:00Z");
+        var c =
+                campaign(
+                        CouponCampaign.Kind.CLAIM,
+                        CouponCampaign.Status.ACTIVE,
+                        0,
+                        now.minusSeconds(1),
+                        now.plusSeconds(3600));
+        c.productId = UUID.randomUUID();
+        campaigns.saveAndFlush(c);
+        assertThatThrownBy(() -> service.send(c.id))
+                .isInstanceOf(com.msa.coupon.domain.coupon.exception.CouponException.class);
+        assertThat(campaigns.findById(c.id).orElseThrow().notificationSentAt).isNull();
+    }
+
     CouponCampaign campaign(
             CouponCampaign.Kind kind,
             CouponCampaign.Status status,

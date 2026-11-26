@@ -66,6 +66,8 @@ public class CampaignIssueStoreImpl implements CampaignIssueStore {
                 || ("TARGET".equals(source) && c.kind != CouponCampaign.Kind.TARGETED)
                 || ("MEMBER".equals(source) && c.kind != CouponCampaign.Kind.MEMBER))
             throw new CampaignException(CampaignErrorCode.CAMPAIGN_NOT_ACTIVE);
+        // 받기형의 적용 상품은 요청값 대신 캠페인에 고정된 상품을 사용합니다.
+        if ("CLAIM".equals(source)) product = c.productId;
         var now = clock.instant();
         if (c.status != CouponCampaign.Status.ACTIVE
                 || now.isBefore(c.startsAt)

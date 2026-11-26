@@ -25,7 +25,31 @@ public record CampaignRequest(
         @Min(1) @Max(1) int perAccountLimit,
         @NotNull Instant startsAt,
         @NotNull Instant endsAt,
-        @Schema(defaultValue = "false") Boolean demo) {
+        @Schema(defaultValue = "false") Boolean demo,
+        @Schema(description = "받기형 캠페인의 적용 상품 ID이며 생략하면 전체 상품입니다") UUID productId) {
+    public CampaignRequest(
+            String code,
+            UUID definitionId,
+            String kind,
+            String ruleCode,
+            int totalBudget,
+            int perAccountLimit,
+            Instant startsAt,
+            Instant endsAt,
+            Boolean demo) {
+        this(
+                code,
+                definitionId,
+                kind,
+                ruleCode,
+                totalBudget,
+                perAccountLimit,
+                startsAt,
+                endsAt,
+                demo,
+                null);
+    }
+
     @Override
     public String toString() {
         return "CampaignRequest[REDACTED]";
