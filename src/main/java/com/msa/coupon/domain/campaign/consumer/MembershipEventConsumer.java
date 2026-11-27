@@ -10,6 +10,8 @@ import com.msa.coupon.domain.receipt.InvalidCouponEventException;
 import com.msa.coupon.domain.receipt.service.CouponReceiptService;
 import com.msa.coupon.domain.receipt.service.EventHash;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
@@ -25,6 +27,7 @@ import java.util.Set;
 @Component
 @ConditionalOnProperty(name = "coupon.consumer.enabled", havingValue = "true")
 public class MembershipEventConsumer {
+    private static final Logger log = LoggerFactory.getLogger(MembershipEventConsumer.class);
     private static final Set<String> TYPES =
             Set.of(
                     "MEMBERSHIP_STARTED",
@@ -101,21 +104,36 @@ public class MembershipEventConsumer {
         String reference =
                 event.subscriptionId() + ":" + event.generation() + ":" + event.cycleNumber();
         if (issues.findBySourceAndSourceRef("MEMBER", reference).isPresent()) return;
+        var now = clock.instant();
         var active =
-                campaigns
-                        .findByKindAndStatusOrderByCreatedAtAsc(
-                                CouponCampaign.Kind.MEMBER, CouponCampaign.Status.ACTIVE)
-                        .stream()
-                        .filter(
-                                c ->
-                                        !clock.instant().isBefore(c.startsAt)
-                                                && clock.instant().isBefore(c.endsAt))
+                campaigns.findByKindAndStatusOrderByCreatedAtAsc(
+                        CouponCampaign.Kind.MEMBER, CouponCampaign.Status.ACTIVE);
+        var running =
+                active.stream()
+                        .filter(c -> !now.isBefore(c.startsAt) && now.isBefore(c.endsAt))
                         .toList();
-        // 캠페인 미설정도 복구 가능한 장애로 남겨 회원 혜택을 조용히 잃지 않습니다.
-        if (active.size() != 1) throw new IllegalStateException("MEMBER_CAMPAIGN_CONFIGURATION");
+        // 진행 중 캠페인이 둘 이상이면 지급 대상을 고를 수 없는 설정 오류라 재시도 뒤 격리합니다.
+        if (running.size() > 1) throw new IllegalStateException("MEMBER_CAMPAIGN_CONFIGURATION");
+        // 없음, 일시정지, 기간 밖, 예산 소진은 정상 운영 상황이라 기록만 남기고 오프셋을 진행합니다.
+        String skipped =
+                active.isEmpty()
+                        ? "NO_ACTIVE_CAMPAIGN"
+                        : running.isEmpty()
+                                ? "OUT_OF_PERIOD"
+                                : running.getFirst().issuedCount >= running.getFirst().totalBudget
+                                        ? "BUDGET_EXHAUSTED"
+                                        : null;
+        if (skipped != null) {
+            log.warn(
+                    "coupon member issue skipped eventId={} subscriptionId={} reason={}",
+                    event.eventId(),
+                    event.subscriptionId(),
+                    skipped);
+            return;
+        }
         var result =
                 store.issue(
-                        active.getFirst().code,
+                        running.getFirst().code,
                         event.accountId(),
                         reference,
                         "MEMBER",

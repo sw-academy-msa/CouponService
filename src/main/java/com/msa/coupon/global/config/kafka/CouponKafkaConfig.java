@@ -47,6 +47,15 @@ public class CouponKafkaConfig {
                             try {
                                 r.accept(record, exception);
                                 meters.counter("stockdrop.coupon.dlt.published").increment();
+                                // 원인 메시지에는 개인정보가 섞일 수 있어 예외 종류만 남깁니다.
+                                LoggerFactory.getLogger(CouponKafkaConfig.class)
+                                        .error(
+                                                "coupon dlt published topic={} partition={}"
+                                                        + " offset={} cause={}",
+                                                record.topic(),
+                                                record.partition(),
+                                                record.offset(),
+                                                rootCause(exception).getClass().getSimpleName());
                             } catch (RuntimeException failure) {
                                 // 격리 토픽 장애 때 offset을 유지하고 관리자가 재개할 때까지 소비를 멈춥니다.
                                 var listeners = registry.getIfAvailable();
@@ -64,6 +73,12 @@ public class CouponKafkaConfig {
                         new FixedBackOff(1000L, 3));
         h.addNotRetryableExceptions(InvalidCouponEventException.class);
         return h;
+    }
+
+    private static Throwable rootCause(Throwable failure) {
+        var cause = failure;
+        while (cause.getCause() != null && cause.getCause() != cause) cause = cause.getCause();
+        return cause;
     }
 
     @Bean
