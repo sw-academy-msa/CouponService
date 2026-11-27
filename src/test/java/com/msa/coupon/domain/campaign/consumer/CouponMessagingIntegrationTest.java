@@ -4,6 +4,10 @@ import static org.assertj.core.api.Assertions.*;
 import static org.awaitility.Awaitility.await;
 
 import com.msa.coupon.domain.campaign.dto.request.MembershipEvent;
+import com.msa.coupon.domain.campaign.entity.CouponCampaign;
+import com.msa.coupon.domain.campaign.repository.CouponCampaignRepository;
+import com.msa.coupon.domain.coupon.entity.CouponDefinition;
+import com.msa.coupon.domain.coupon.repository.CouponDefinitionRepository;
 import com.msa.coupon.domain.coupon.repository.CouponIssueRepository;
 import com.msa.coupon.domain.receipt.repository.CouponEventReceiptRepository;
 import com.msa.coupon.global.config.database.CouponDatabaseTestSupport;
@@ -15,9 +19,13 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.StringDeserializer;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.context.annotation.Import;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.listener.DefaultErrorHandler;
@@ -30,6 +38,7 @@ import tools.jackson.databind.ObjectMapper;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -42,6 +51,7 @@ import java.util.concurrent.atomic.AtomicInteger;
         properties = {"coupon.consumer.enabled=true", "spring.kafka.listener.auto-startup=true"})
 @ActiveProfiles("test")
 @Import(CouponDatabaseTestSupport.Time.class)
+@ExtendWith(OutputCaptureExtension.class)
 class CouponMessagingIntegrationTest extends CouponDatabaseTestSupport {
     static final KafkaContainer KAFKA = new KafkaContainer("apache/kafka:4.1.0");
     static final String ORDERS = "stockdrop.orders.lifecycle.v1";
@@ -72,6 +82,126 @@ class CouponMessagingIntegrationTest extends CouponDatabaseTestSupport {
     @Autowired MutableClock clock;
     @Autowired CouponEventReceiptRepository receipts;
     @Autowired CouponIssueRepository issues;
+    @Autowired CouponCampaignRepository campaigns;
+    @Autowired CouponDefinitionRepository definitions;
+    private final List<UUID> createdCampaigns = new ArrayList<>();
+    private final List<UUID> createdDefinitions = new ArrayList<>();
+
+    /** 공유 테스트 DB에 회원 캠페인을 남겨 다른 발급 검증을 바꾸지 않습니다. */
+    @AfterEach
+    void cleanFixtures() {
+        campaigns.deleteAllById(createdCampaigns);
+        definitions.deleteAllById(createdDefinitions);
+        createdCampaigns.clear();
+        createdDefinitions.clear();
+    }
+
+    MembershipEvent started() {
+        return new MembershipEvent(
+                UUID.randomUUID(),
+                1,
+                "MEMBERSHIP_STARTED",
+                "PAYMENT",
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                1,
+                1,
+                1,
+                clock.instant().plusSeconds(3600),
+                clock.instant());
+    }
+
+    CouponCampaign memberCampaign(
+            CouponCampaign.Status status, int issued, Instant starts, Instant ends) {
+        var now = clock.instant();
+        var d =
+                definitions.save(
+                        CouponDefinition.builder()
+                                .id(UUID.randomUUID())
+                                .name("회원 쿠폰")
+                                .discountType("AMOUNT")
+                                .amount(3000L)
+                                .scope("ALL")
+                                .validityMode("RELATIVE")
+                                .validMinutes(60)
+                                .noticeLeadMinutes(10)
+                                .status(CouponDefinition.Status.ACTIVE)
+                                .createdBy(UUID.randomUUID())
+                                .createdAt(now)
+                                .updatedAt(now)
+                                .build());
+        createdDefinitions.add(d.id);
+        var saved =
+                campaigns.saveAndFlush(
+                        CouponCampaign.builder()
+                                .id(UUID.randomUUID())
+                                .code(
+                                        "M"
+                                                + UUID.randomUUID()
+                                                        .toString()
+                                                        .replace("-", "")
+                                                        .toUpperCase())
+                                .definitionId(d.id)
+                                .kind(CouponCampaign.Kind.MEMBER)
+                                .status(status)
+                                .totalBudget(10)
+                                .issuedCount(issued)
+                                .perAccountLimit(1)
+                                .startsAt(starts)
+                                .endsAt(ends)
+                                .createdAt(now)
+                                .updatedAt(now)
+                                .build());
+        createdCampaigns.add(saved.id);
+        return saved;
+    }
+
+    /** 지급할 진행 중 회원 캠페인이 없는 정상 운영 상황은 재시도와 DLT 없이 커밋합니다. */
+    @Test
+    void startedWithoutUsableMemberCampaignCommitsWithoutDlt(CapturedOutput output)
+            throws Exception {
+        var now = clock.instant();
+        var attempts = new AtomicInteger();
+        handler.setRetryListeners((record, exception, attempt) -> attempts.incrementAndGet());
+        long issuedBefore = issues.count();
+        for (String reason :
+                List.of("NO_ACTIVE_CAMPAIGN", "PAUSED", "OUT_OF_PERIOD", "BUDGET_EXHAUSTED")) {
+            switch (reason) {
+                case "PAUSED" ->
+                        memberCampaign(
+                                CouponCampaign.Status.PAUSED,
+                                0,
+                                now.minusSeconds(60),
+                                now.plusSeconds(3600));
+                case "OUT_OF_PERIOD" ->
+                        memberCampaign(
+                                CouponCampaign.Status.ACTIVE,
+                                0,
+                                now.plusSeconds(60),
+                                now.plusSeconds(3600));
+                case "BUDGET_EXHAUSTED" ->
+                        memberCampaign(
+                                CouponCampaign.Status.ACTIVE,
+                                10,
+                                now.minusSeconds(60),
+                                now.plusSeconds(3600));
+                default -> {}
+            }
+            var event = started();
+            kafka.send(MEMBER, event.accountId().toString(), mapper.writeValueAsBytes(event))
+                    .get(10, TimeUnit.SECONDS);
+            // receipt는 발급 트랜잭션이 커밋될 때만 남으므로 오프셋 진행을 뜻합니다.
+            await().atMost(Duration.ofSeconds(30))
+                    .untilAsserted(() -> assertThat(receipts.findById(event.eventId())).isPresent());
+            assertThat(output)
+                    .contains("eventId=" + event.eventId())
+                    .contains("subscriptionId=" + event.subscriptionId())
+                    .doesNotContain(event.accountId().toString());
+            cleanFixtures();
+        }
+        assertThat(attempts.get()).isZero();
+        assertThat(issues.count()).isEqualTo(issuedBefore);
+    }
 
     @Test
     void nonIssuingPaymentResultsCommitThroughKafkaWithoutCampaigns() throws Exception {
@@ -150,27 +280,19 @@ class CouponMessagingIntegrationTest extends CouponDatabaseTestSupport {
         }
     }
 
+    /** 진행 중 회원 캠페인이 둘 이상이면 지급 대상을 고를 수 없어 재시도 뒤 격리합니다. */
     @Test
-    void temporaryFailureRetriesThreeTimesThenDlt() throws Exception {
+    void temporaryFailureRetriesThreeTimesThenDlt(CapturedOutput output) throws Exception {
+        var now = clock.instant();
+        memberCampaign(CouponCampaign.Status.ACTIVE, 0, now.minusSeconds(60), now.plusSeconds(3600));
+        memberCampaign(CouponCampaign.Status.ACTIVE, 0, now.minusSeconds(60), now.plusSeconds(3600));
         String key = UUID.randomUUID().toString();
         var attempts = new AtomicInteger();
         handler.setRetryListeners(
                 (record, exception, attempt) -> {
                     if (key.equals(record.key())) attempts.incrementAndGet();
                 });
-        var event =
-                new MembershipEvent(
-                        UUID.randomUUID(),
-                        1,
-                        "MEMBERSHIP_STARTED",
-                        "PAYMENT",
-                        UUID.randomUUID(),
-                        UUID.randomUUID(),
-                        1,
-                        1,
-                        1,
-                        clock.instant().plusSeconds(3600),
-                        clock.instant());
+        var event = started();
         try (var consumer = dlt(MEMBER)) {
             kafka.send(MEMBER, 0, key, mapper.writeValueAsBytes(event)).get(10, TimeUnit.SECONDS);
             var found = new ArrayList<ConsumerRecord<String, byte[]>>();
@@ -181,6 +303,12 @@ class CouponMessagingIntegrationTest extends CouponDatabaseTestSupport {
                                 assertThat(found).anyMatch(r -> key.equals(r.key()));
                             });
             assertThat(attempts.get()).isEqualTo(4);
+            await().atMost(Duration.ofSeconds(10))
+                    .untilAsserted(
+                            () ->
+                                    assertThat(output)
+                                            .contains("coupon dlt published")
+                                            .contains("cause=IllegalStateException"));
         }
     }
 }
